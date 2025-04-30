@@ -19,6 +19,12 @@ const connectDB = require('./utils/db');
 // Connect to Database
 connectDB();
 
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+
+// Mount routes
+app.use('/api/auth', authRoutes);
+
 // Basic route for testing
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to Excel Analytics Platform API' });
