@@ -107,28 +107,6 @@ cd ../frontend
 npm start
 ```
 
-## 📋 Project Structure
-
-```
-excel-analytics-platform/
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── redux/
-│   │   ├── services/
-│   │   └── utils/
-│   └── public/
-├── backend/
-│   ├── src/
-│   │   ├── controllers/
-│   │   ├── models/
-│   │   ├── routes/
-│   │   ├── middleware/
-│   │   └── utils/
-│   └── config/
-└── README.md
-```
 
 ## 🔒 Security Features
 
@@ -147,38 +125,8 @@ excel-analytics-platform/
 - Support for up to 100 concurrent users
 - Handle up to 1000 stored files
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
 
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 👥 Authors
-
-- Your Name - Initial work
-
-## 🙏 Acknowledgments
-
-- Chart.js for visualization capabilities
-- Three.js for 3D rendering
-- MongoDB Atlas for database hosting
-- Render and Vercel for deployment services
-
-## 📞 Support
-
-For support, email support@excelanalytics.com or create an issue in the repository.
-
-## 🔄 Future Enhancements
-
-- Mobile application development
-- Real-time collaborative editing
-- Integration with external data sources
-- Advanced statistical analysis tools
-- Custom chart type creation
-- Team collaboration features 
