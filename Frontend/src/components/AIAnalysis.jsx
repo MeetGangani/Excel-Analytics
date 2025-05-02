@@ -11,6 +11,8 @@ const AIAnalysis = () => {
   const [analysis, setAnalysis] = useState(null);
   const [uploadMode, setUploadMode] = useState(false); // Toggle between existing files and upload mode
   const [newFile, setNewFile] = useState(null); // For direct upload
+  const [showCustomPrompt, setShowCustomPrompt] = useState(false); // Toggle for custom prompt
+  const [customPrompt, setCustomPrompt] = useState(''); // Store the custom prompt
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
@@ -71,6 +73,18 @@ const AIAnalysis = () => {
     setAnalysis(null);
   };
 
+  const handleCustomPromptChange = (e) => {
+    setCustomPrompt(e.target.value);
+  };
+
+  const toggleCustomPrompt = () => {
+    setShowCustomPrompt(!showCustomPrompt);
+    // Clear custom prompt when toggling off
+    if (showCustomPrompt) {
+      setCustomPrompt('');
+    }
+  };
+
   const analyzeFile = async () => {
     if (!selectedFile && !newFile) {
       setError('Please select a file to analyze');
@@ -98,7 +112,8 @@ const AIAnalysis = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            analysisType: 'comprehensive'
+            analysisType: 'comprehensive',
+            customPrompt: customPrompt
           }),
         });
 
@@ -114,6 +129,11 @@ const AIAnalysis = () => {
         const formData = new FormData();
         formData.append('file', newFile);
         formData.append('analysisType', 'comprehensive');
+        
+        // Add custom prompt to form data if provided
+        if (customPrompt) {
+          formData.append('customPrompt', customPrompt);
+        }
 
         const response = await fetch('http://localhost:5000/api/files/analyze/upload', {
           method: 'POST',
@@ -141,9 +161,69 @@ const AIAnalysis = () => {
     setAnalysis(null);
     setNewFile(null);
     setSelectedFile(null);
+    setCustomPrompt('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  // Helper to render the appropriate analysis content
+  const renderAnalysisContent = () => {
+    if (!analysis) return null;
+
+    // Check if it's a custom analysis
+    if (analysis.customAnalysis) {
+      // This is a custom prompt analysis, render it differently
+      return (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-md font-medium text-gray-900">
+              {analysis.message ? analysis.message : 'Custom Analysis Results'}
+            </h3>
+            <div className="mt-4 p-5 bg-gray-50 rounded-md text-sm text-gray-800 whitespace-pre-line">
+              {analysis.customAnalysis}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Otherwise, render the structured analysis
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-md font-medium text-gray-900">Summary</h3>
+          <p className="mt-1 text-sm text-gray-600">{analysis.summary}</p>
+        </div>
+
+        <div>
+          <h3 className="text-md font-medium text-gray-900">Key Insights</h3>
+          <ul className="mt-2 list-disc pl-5 space-y-1">
+            {analysis.insights.map((insight, index) => (
+              <li key={index} className="text-sm text-gray-600">{insight}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <h3 className="text-md font-medium text-gray-900">Recommendations</h3>
+          <ul className="mt-2 list-disc pl-5 space-y-1">
+            {analysis.recommendations.map((recommendation, index) => (
+              <li key={index} className="text-sm text-gray-600">{recommendation}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <h3 className="text-md font-medium text-gray-900">Data Quality Issues</h3>
+          <ul className="mt-2 list-disc pl-5 space-y-1">
+            {analysis.dataQualityIssues.map((issue, index) => (
+              <li key={index} className="text-sm text-gray-600">{issue}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -249,10 +329,57 @@ const AIAnalysis = () => {
                   </div>
                 )}
 
+                {/* Custom Prompt Toggle */}
+                <div className="mt-4">
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={toggleCustomPrompt}
+                      className="text-sm text-indigo-600 hover:text-indigo-500 flex items-center"
+                    >
+                      {showCustomPrompt ? (
+                        <>
+                          <svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                          Hide Custom Prompt
+                        </>
+                      ) : (
+                        <>
+                          <svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                          Use Custom Prompt
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  
+                  {showCustomPrompt && (
+                    <div className="mt-2">
+                      <label htmlFor="customPrompt" className="block text-sm font-medium text-gray-700 mb-1">
+                        Enter your analysis prompt for Gemini
+                      </label>
+                      <textarea
+                        id="customPrompt"
+                        name="customPrompt"
+                        rows={3}
+                        className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border border-gray-300 rounded-md"
+                        placeholder="E.g., Give me the first 5 questions or Show me sales trends by region"
+                        value={customPrompt}
+                        onChange={handleCustomPromptChange}
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Be specific about what you want Gemini to extract or analyze from your data.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 <div className="mt-4">
                   <button
                     type="button"
-                    onClick={analyzeFile} // Changed from simulateAnalysis to analyzeFile
+                    onClick={analyzeFile}
                     disabled={!newFile || analyzing}
                     className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300"
                   >
@@ -317,10 +444,57 @@ const AIAnalysis = () => {
                     ))}
                   </div>
 
+                  {/* Custom Prompt Toggle */}
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={toggleCustomPrompt}
+                        className="text-sm text-indigo-600 hover:text-indigo-500 flex items-center"
+                      >
+                        {showCustomPrompt ? (
+                          <>
+                            <svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                            Hide Custom Prompt
+                          </>
+                        ) : (
+                          <>
+                            <svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                            Use Custom Prompt
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    
+                    {showCustomPrompt && (
+                      <div className="mt-2">
+                        <label htmlFor="customPrompt" className="block text-sm font-medium text-gray-700 mb-1">
+                          Enter your analysis prompt for Gemini
+                        </label>
+                        <textarea
+                          id="customPrompt"
+                          name="customPrompt"
+                          rows={3}
+                          className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border border-gray-300 rounded-md"
+                          placeholder="E.g., Give me the first 5 questions or Show me sales trends by region"
+                          value={customPrompt}
+                          onChange={handleCustomPromptChange}
+                        />
+                        <p className="mt-1 text-xs text-gray-500">
+                          Be specific about what you want Gemini to extract or analyze from your data.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="mt-4">
                     <button
                       type="button"
-                      onClick={analyzeFile} // Changed from simulateAnalysis to analyzeFile
+                      onClick={analyzeFile}
                       disabled={!selectedFile || analyzing}
                       className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300"
                     >
@@ -369,42 +543,15 @@ const AIAnalysis = () => {
                 <div className="flex flex-col items-center">
                   <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div>
                   <h3 className="mt-4 text-lg font-medium text-gray-900">Analyzing your data</h3>
-                  <p className="mt-1 text-sm text-gray-500">Gemini AI is processing your file and generating insights...</p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {customPrompt ? 'Gemini AI is processing your custom query...' : 'Gemini AI is processing your file and generating insights...'}
+                  </p>
                 </div>
               </div>
             ) : analysis ? (
+              // Use the renderAnalysisContent helper to display the right format
               <div className="space-y-6">
-                <div>
-                  <h3 className="text-md font-medium text-gray-900">Summary</h3>
-                  <p className="mt-1 text-sm text-gray-600">{analysis.summary}</p>
-                </div>
-
-                <div>
-                  <h3 className="text-md font-medium text-gray-900">Key Insights</h3>
-                  <ul className="mt-2 list-disc pl-5 space-y-1">
-                    {analysis.insights.map((insight, index) => (
-                      <li key={index} className="text-sm text-gray-600">{insight}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="text-md font-medium text-gray-900">Recommendations</h3>
-                  <ul className="mt-2 list-disc pl-5 space-y-1">
-                    {analysis.recommendations.map((recommendation, index) => (
-                      <li key={index} className="text-sm text-gray-600">{recommendation}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="text-md font-medium text-gray-900">Data Quality Issues</h3>
-                  <ul className="mt-2 list-disc pl-5 space-y-1">
-                    {analysis.dataQualityIssues.map((issue, index) => (
-                      <li key={index} className="text-sm text-gray-600">{issue}</li>
-                    ))}
-                  </ul>
-                </div>
+                {renderAnalysisContent()}
 
                 <div className="pt-4 border-t border-gray-200">
                   <div className="flex justify-end">
@@ -423,7 +570,11 @@ const AIAnalysis = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
                 <h3 className="mt-2 text-sm font-medium text-gray-900">Ready to analyze</h3>
-                <p className="mt-1 text-sm text-gray-500">Click "Analyze with Gemini AI" to start the analysis.</p>
+                <p className="mt-1 text-sm text-gray-500">
+                  {showCustomPrompt ? 
+                    'Enter your custom prompt and click "Analyze with Gemini AI".' : 
+                    'Click "Analyze with Gemini AI" to start the analysis.'}
+                </p>
               </div>
             )}
           </div>
