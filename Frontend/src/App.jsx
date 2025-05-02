@@ -4,6 +4,8 @@ import Register from './components/Auth/Register';
 import Header from './components/Header';
 import Login from './components/Auth/Login';
 import Dashboard from './components/Dashboard';
+import ForgotPassword from './components/Auth/ForgotPassword';
+import ResetPassword from './components/Auth/ResetPassword';
 
 // Create Authentication Context
 export const AuthContext = createContext();
@@ -12,6 +14,12 @@ export const AuthContext = createContext();
 const PrivateRoute = ({ children }) => {
   const isAuthenticated = localStorage.getItem('user') !== null;
   return isAuthenticated ? children : <Navigate to="/" />;
+};
+
+// PublicRoute component to redirect authenticated users away from public pages
+const PublicRoute = ({ children }) => {
+  const isAuthenticated = localStorage.getItem('user') !== null;
+  return isAuthenticated ? <Navigate to="/dashboard" /> : children;
 };
 
 function App() {
@@ -65,8 +73,18 @@ function App() {
       <BrowserRouter>
         <Header />
         <Routes>
-          <Route path='/' element={<Login />} />
-          <Route path='/register' element={<Register />} />
+          <Route path='/' element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          } />
+          <Route path='/register' element={
+            <PublicRoute>
+              <Register />
+            </PublicRoute>
+          } />
+          <Route path='/forgot-password' element={<ForgotPassword />} />
+          <Route path='/reset-password/:resetToken' element={<ResetPassword />} />
           <Route 
             path='/dashboard' 
             element={
