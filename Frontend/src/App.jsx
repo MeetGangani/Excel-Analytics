@@ -1,11 +1,12 @@
 import { useState, useEffect, createContext } from 'react';
 import { Routes, Route, BrowserRouter, Navigate } from 'react-router-dom';
 import Register from './components/Auth/Register';
-import Header from './components/Header';
 import Login from './components/Auth/Login';
 import Dashboard from './components/Dashboard';
 import ForgotPassword from './components/Auth/ForgotPassword';
 import ResetPassword from './components/Auth/ResetPassword';
+import FileUpload from './components/FileUpload';
+import AIAnalysis from './components/AIAnalysis';
 
 // Create Authentication Context
 export const AuthContext = createContext();
@@ -71,7 +72,6 @@ function App() {
   return (
     <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
       <BrowserRouter>
-        <Header />
         <Routes>
           <Route path='/' element={
             <PublicRoute>
@@ -85,11 +85,29 @@ function App() {
           } />
           <Route path='/forgot-password' element={<ForgotPassword />} />
           <Route path='/reset-password/:resetToken' element={<ResetPassword />} />
+          
+          {/* Dashboard and related routes */}
           <Route 
             path='/dashboard' 
             element={
               <PrivateRoute>
                 <Dashboard />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path='/dashboard/files' 
+            element={
+              <PrivateRoute>
+                <FileUpload />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path='/dashboard/ai-analysis' 
+            element={
+              <PrivateRoute>
+                <AIAnalysis />
               </PrivateRoute>
             } 
           />
