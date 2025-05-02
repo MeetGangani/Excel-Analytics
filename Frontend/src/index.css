@@ -1,4 +1,8 @@
-/*********************** Header styling *******************************/
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*********************** Custom styling *******************************/
 .work-sans-headerName {
   font-family: "Work Sans", sans-serif;
   font-optical-sizing: auto;
