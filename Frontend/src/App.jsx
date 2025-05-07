@@ -7,9 +7,14 @@ import ForgotPassword from './components/Auth/ForgotPassword';
 import ResetPassword from './components/Auth/ResetPassword';
 import FileUpload from './components/FileUpload';
 import AIAnalysis from './components/AIAnalysis';
+import Visualizations from './components/Visualizations';
 
 // Create Authentication Context
-export const AuthContext = createContext();
+export const AuthContext = createContext({
+  isAuthenticated: false,
+  login: () => {},
+  logout: () => {}
+});
 
 // PrivateRoute component to protect routes
 const PrivateRoute = ({ children }) => {
@@ -104,10 +109,26 @@ function App() {
             } 
           />
           <Route 
+            path='/dashboard/visualizations' 
+            element={
+              <PrivateRoute>
+                <Visualizations />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
             path='/dashboard/ai-analysis' 
             element={
               <PrivateRoute>
                 <AIAnalysis />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path='/dashboard/settings' 
+            element={
+              <PrivateRoute>
+                <Dashboard />
               </PrivateRoute>
             } 
           />

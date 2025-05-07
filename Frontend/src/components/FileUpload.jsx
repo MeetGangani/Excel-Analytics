@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import MainLayout from './layout/MainLayout';
+import DashboardLayout from './layout/DashboardLayout';
 
 const FileUpload = () => {
   const [files, setFiles] = useState([]);
@@ -201,7 +201,7 @@ const FileUpload = () => {
   };
 
   return (
-    <MainLayout>
+    <DashboardLayout>
       <div className="max-w-6xl mx-auto">
         <div className="space-y-6">
           <div>
@@ -467,7 +467,7 @@ const FileUpload = () => {
           </div>
         </div>
       </div>
-    </MainLayout>
+    </DashboardLayout>
   );
 };
 

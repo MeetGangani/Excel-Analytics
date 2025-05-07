@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import MainLayout from './layout/MainLayout';
+import DashboardLayout from './layout/DashboardLayout';
 
 const AIAnalysis = () => {
   const [files, setFiles] = useState([]);
@@ -227,7 +227,7 @@ const AIAnalysis = () => {
   };
 
   return (
-    <MainLayout>
+    <DashboardLayout>
       {/* Fix layout by ensuring this container has proper min-height and no excessive margins */}
       <div className="h-full min-h-[80vh] max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
         <div className="mb-6">
@@ -580,7 +580,7 @@ const AIAnalysis = () => {
           </div>
         </div>
       </div>
-    </MainLayout>
+    </DashboardLayout>
   );
 };
 

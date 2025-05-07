@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const File = require('../models/File');
+const XLSX = require('xlsx');
+const asyncHandler = require('express-async-handler');
 
 // Helper function to verify model before making API calls
 async function verifyGeminiModel() {
@@ -1225,4 +1227,64 @@ If there's not enough information to provide a complete analysis, focus on what 
       error: error.message
     });
   }
-}; 
+};
+
+/**
+ * @desc    Get data from Excel file for visualization
+ * @route   GET /api/files/:id/data
+ * @access  Private
+ */
+exports.getFileData = asyncHandler(async (req, res) => {
+  try {
+    const fileId = req.params.id;
+    const userId = req.user.id;
+
+    // Find the file by ID and user ID
+    const file = await File.findOne({
+      _id: fileId,
+      user: userId,
+    });
+
+    if (!file) {
+      return res.status(404).json({
+        success: false,
+        message: 'File not found',
+      });
+    }
+
+    // Check if the file exists in the database
+    if (!file.data) {
+      return res.status(404).json({
+        success: false,
+        message: 'File data not found',
+      });
+    }
+
+    // Parse Excel file data
+    const workbook = XLSX.read(file.data.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0]; // Get first sheet
+    const worksheet = workbook.Sheets[sheetName];
+    
+    // Convert the worksheet to JSON
+    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+    
+    // Extract headers from the first row
+    const headers = Object.keys(jsonData[0] || {});
+
+    // Return the processed data
+    res.status(200).json({
+      success: true,
+      headers,
+      data: jsonData,
+      sheetName,
+      totalRows: jsonData.length
+    });
+  } catch (error) {
+    console.error('Error getting file data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get file data',
+      error: error.message,
+    });
+  }
+}); 

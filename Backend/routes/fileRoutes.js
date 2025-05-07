@@ -6,7 +6,8 @@ const {
   deleteFile,
   downloadFile,
   analyzeFile, 
-  analyzeUploadedFile 
+  analyzeUploadedFile,
+  getFileData 
 } = require('../controllers/fileController');
 const { protect } = require('../middleware/auth');
 const multer = require('multer');
@@ -21,6 +22,7 @@ const router = express.Router();
 // Protected routes (require authentication)
 router.get('/', protect, getFiles);
 router.get('/:id', protect, getFileById);
+router.get('/:id/data', protect, getFileData);
 router.get('/:id/download', protect, downloadFile);
 router.delete('/:id', protect, deleteFile);
 router.post('/upload', protect, upload.array('files'), uploadFiles);
