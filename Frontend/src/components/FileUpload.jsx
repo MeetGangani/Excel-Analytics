@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import DashboardLayout from './layout/DashboardLayout';
+import { Link } from 'react-router-dom';
 
 const FileUpload = () => {
   const [files, setFiles] = useState([]);
@@ -42,7 +43,16 @@ const FileUpload = () => {
       }
 
       const data = await response.json();
-      setUploadedFiles(data.files || []);
+      
+      // Process files to ensure all have consistent IDs
+      const processedFiles = (data.files || []).map(file => ({
+        ...file,
+        id: file.id || file._id, // Ensure each file has an id property
+        _id: file._id || file.id // Ensure each file has an _id property
+      }));
+      
+      console.log('Processed files for upload view:', processedFiles);
+      setUploadedFiles(processedFiles);
     } catch (error) {
       console.error('Error fetching files:', error);
       setError('Error loading your files. Please try again.');
@@ -396,7 +406,7 @@ const FileUpload = () => {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {uploadedFiles.map((file) => (
-                        <tr key={file.id}>
+                        <tr key={file.id || file._id}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             <div className="flex items-center">
                               <svg className="flex-shrink-0 h-5 w-5 text-green-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -410,14 +420,14 @@ const FileUpload = () => {
                             {(file.size / 1024 / 1024).toFixed(2)} MB
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(file.uploadedAt)}
+                            {formatDate(file.uploadedAt || file.uploadDate)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             {deleteConfirm === file.id ? (
                               <div className="flex items-center justify-end space-x-2">
                                 <span className="text-red-600 text-xs">Confirm?</span>
                                 <button 
-                                  onClick={() => handleDeleteFile(file.id)} 
+                                  onClick={() => handleDeleteFile(file.id || file._id)} 
                                   className="text-red-600 hover:text-red-900"
                                 >
                                   Yes
@@ -431,14 +441,20 @@ const FileUpload = () => {
                               </div>
                             ) : (
                               <div className="flex items-center justify-end space-x-4">
-                                <button 
-                                  onClick={() => window.location.href = `/dashboard/ai-analysis?fileId=${file.id}`}
+                                <Link 
+                                  to={`/dashboard/visualizations?file=${file.id || file._id}`}
+                                  className="text-indigo-600 hover:text-indigo-900"
+                                >
+                                  Visualize
+                                </Link>
+                                <Link 
+                                  to={`/dashboard/ai-analysis?file=${file.id || file._id}`}
                                   className="text-indigo-600 hover:text-indigo-900"
                                 >
                                   Analyze
-                                </button>
+                                </Link>
                                 <button 
-                                  onClick={() => handleDeleteFile(file.id)} 
+                                  onClick={() => handleDeleteFile(file.id || file._id)} 
                                   className="text-red-600 hover:text-red-900"
                                 >
                                   Delete

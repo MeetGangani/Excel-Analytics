@@ -1253,7 +1253,7 @@ exports.getFileData = asyncHandler(async (req, res) => {
     }
 
     // Check if the file exists in the database
-    if (!file.data) {
+    if (!file.content) {
       return res.status(404).json({
         success: false,
         message: 'File data not found',
@@ -1261,7 +1261,7 @@ exports.getFileData = asyncHandler(async (req, res) => {
     }
 
     // Parse Excel file data
-    const workbook = XLSX.read(file.data.buffer, { type: 'buffer' });
+    const workbook = XLSX.read(file.content, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0]; // Get first sheet
     const worksheet = workbook.Sheets[sheetName];
     

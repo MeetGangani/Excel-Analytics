@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from './layout/DashboardLayout';
 import Chart2D from './visualizations/Chart2D';
 import Chart3D from './visualizations/Chart3D';
@@ -7,6 +7,7 @@ import { getToken } from '../utils/auth';
 
 const Visualizations = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [files, setFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileData, setFileData] = useState(null);
@@ -37,10 +38,41 @@ const Visualizations = () => {
         }
 
         const data = await response.json();
-        // Filter out files without valid IDs
-        const validFiles = (data.files || []).filter(file => file && file._id && file._id !== 'undefined');
+        
+        // Check if files array exists and is not empty
+        if (!data.files || !Array.isArray(data.files)) {
+          console.warn('No files array in response:', data);
+          setFiles([]);
+          setLoading(false);
+          return;
+        }
+        
+        // Process files to ensure all have consistent IDs
+        const processedFiles = data.files.map(file => ({
+          ...file,
+          id: file.id || file._id, // Ensure each file has an id property
+          _id: file._id || file.id // Ensure each file has an _id property
+        }));
+        
+        // Filter out files without valid IDs 
+        const validFiles = processedFiles.filter(file => file && (file.id || file._id));
         console.log('Valid files for visualization:', validFiles);
         setFiles(validFiles);
+        
+        // Check for file ID in query params (for direct links from dashboard)
+        const params = new URLSearchParams(location.search);
+        const fileIdParam = params.get('file');
+        
+        if (fileIdParam && validFiles.length > 0) {
+          const fileToSelect = validFiles.find(f => 
+            f.id === fileIdParam || f._id === fileIdParam || String(f.id) === fileIdParam || String(f._id) === fileIdParam
+          );
+          
+          if (fileToSelect) {
+            console.log('Auto-selecting file from query param:', fileToSelect);
+            handleFileSelect(fileToSelect);
+          }
+        }
       } catch (error) {
         console.error('Error fetching files:', error);
         setError('Failed to load your files. Please try again.');
@@ -50,7 +82,7 @@ const Visualizations = () => {
     };
 
     fetchFiles();
-  }, [navigate]);
+  }, [navigate, location.search]);
 
   // Fetch file data when a file is selected
   const handleFileSelect = async (file) => {
@@ -59,18 +91,19 @@ const Visualizations = () => {
       setSelectedFile(file);
       setFileData(null);
       
-      // Validate file and file._id
-      if (!file || !file._id || file._id === 'undefined') {
+      // Validate file and file ID
+      if (!file || (!file.id && !file._id)) {
         throw new Error('Invalid file selected. Missing file ID.');
       }
       
       // Log the file ID for debugging
-      console.log('Fetching data for file ID:', file._id);
-      console.log('Selected file:', file);
+      console.log('Fetching data for file:', file);
       
       const token = getToken();
       
-      const fileId = file.id || file._id; // Try both possible ID fields
+      // Try both ID fields
+      const fileId = file.id || file._id;
+      console.log('Using file ID for API call:', fileId);
       
       const response = await fetch(`http://localhost:5000/api/files/${fileId}/data`, {
         headers: {
@@ -85,6 +118,10 @@ const Visualizations = () => {
       }
 
       const data = await response.json();
+      
+      // For debugging - log the received data structure
+      console.log('Received file data structure:', data);
+      
       if (!data.data || !Array.isArray(data.data)) {
         console.error('Invalid data format returned:', data);
         throw new Error('The server returned invalid data format');
@@ -119,9 +156,9 @@ const Visualizations = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {files.map((file) => (
                   <div
-                    key={file._id}
+                    key={file.id || file._id}
                     className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                      selectedFile && selectedFile._id === file._id
+                      selectedFile && (selectedFile.id === file.id || selectedFile._id === file._id)
                         ? 'border-indigo-500 bg-indigo-50'
                         : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
                     }`}
@@ -140,7 +177,7 @@ const Visualizations = () => {
                       <div>
                         <p className="font-medium text-gray-800">{file.filename}</p>
                         <p className="text-xs text-gray-500">
-                          {new Date(file.uploadDate).toLocaleString()}
+                          {new Date(file.uploadDate || file.uploadedAt).toLocaleString()}
                         </p>
                       </div>
                     </div>
