@@ -1,140 +1,52 @@
-import { useState, useEffect, createContext } from 'react';
-import { Routes, Route, BrowserRouter, Navigate } from 'react-router-dom';
-import Register from './components/Auth/Register';
-import Login from './components/Auth/Login';
-import Dashboard from './components/Dashboard';
-import ForgotPassword from './components/Auth/ForgotPassword';
-import ResetPassword from './components/Auth/ResetPassword';
-import FileUpload from './components/FileUpload';
-import AIAnalysis from './components/AIAnalysis';
-import Visualizations from './components/Visualizations';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { Provider } from 'react-redux';
+import Header from './components/Header';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Dashboard from './pages/Dashboard';
+import ToastProvider from './components/ToastProvider';
+import store from './redux/store';
+import './App.css';
 
-// Create Authentication Context
-export const AuthContext = createContext({
-  isAuthenticated: false,
-  login: () => {},
-  logout: () => {}
-});
+const AppContent = () => {
+  const location = useLocation();
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/';
 
-// PrivateRoute component to protect routes
-const PrivateRoute = ({ children }) => {
-  const isAuthenticated = localStorage.getItem('user') !== null;
-  return isAuthenticated ? children : <Navigate to="/" />;
-};
-
-// PublicRoute component to redirect authenticated users away from public pages
-const PublicRoute = ({ children }) => {
-  const isAuthenticated = localStorage.getItem('user') !== null;
-  return isAuthenticated ? <Navigate to="/dashboard" /> : children;
+  return (
+    <div className="flex flex-col min-h-screen">
+      <Header />
+      <main className="flex-grow w-full relative">
+        {isAuthPage && (
+          <div className="absolute inset-0 bg-blue-800 opacity-90 z-0">
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMxYjRiNzgiIGZpbGwtb3BhY2l0eT0iMC4yIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIgMS44LTQgNC00czQgMS44IDQgNC0xLjggNC00IDQtNC0xLjgtNC00eiIvPjxwYXRoIGQ9Ik0xNiAxNmMwLTIuMiAxLjgtNCA0LTRzNCAxLjggNCA0LTEuOCA0LTQgNC00LTEuOC00LTR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-20"></div>
+          </div>
+        )}
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/dashboard/*" element={<Dashboard />} />
+        </Routes>
+      </main>
+      {!isAuthPage && (
+        <footer className="bg-white py-6 border-t border-gray-100 text-center text-gray-500 text-sm">
+          <div className="container mx-auto px-4">
+            &copy; {new Date().getFullYear()} Excel Analytics Platform. All rights reserved.
+          </div>
+        </footer>
+      )}
+      <ToastProvider />
+    </div>
+  );
 };
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    // Check if user is authenticated on component mount
-    const user = localStorage.getItem('user');
-    setIsAuthenticated(user !== null);
-
-    // Create a function to handle storage events
-    const handleStorageChange = (e) => {
-      if (e.key === 'user') {
-        setIsAuthenticated(e.newValue !== null);
-      }
-    };
-
-    // Listen for storage events (for login/logout in other tabs)
-    window.addEventListener('storage', handleStorageChange);
-
-    // Create a custom event listener for auth changes within the same tab
-    const handleAuthChange = () => {
-      const user = localStorage.getItem('user');
-      setIsAuthenticated(user !== null);
-    };
-
-    window.addEventListener('authChange', handleAuthChange);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('authChange', handleAuthChange);
-    };
-  }, []);
-
-  // Login function to be passed to Login component
-  const login = (userData) => {
-    localStorage.setItem('user', JSON.stringify(userData));
-    setIsAuthenticated(true);
-    window.dispatchEvent(new Event('authChange'));
-  };
-
-  // Logout function to be passed to components that need it
-  const logout = () => {
-    localStorage.removeItem('user');
-    setIsAuthenticated(false);
-    window.dispatchEvent(new Event('authChange'));
-  };
-
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
-      <BrowserRouter>
-        <Routes>
-          <Route path='/' element={
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
-          } />
-          <Route path='/register' element={
-            <PublicRoute>
-              <Register />
-            </PublicRoute>
-          } />
-          <Route path='/forgot-password' element={<ForgotPassword />} />
-          <Route path='/reset-password/:resetToken' element={<ResetPassword />} />
-          
-          {/* Dashboard and related routes */}
-          <Route 
-            path='/dashboard' 
-            element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            } 
-          />
-          <Route 
-            path='/dashboard/files' 
-            element={
-              <PrivateRoute>
-                <FileUpload />
-              </PrivateRoute>
-            } 
-          />
-          <Route 
-            path='/dashboard/visualizations' 
-            element={
-              <PrivateRoute>
-                <Visualizations />
-              </PrivateRoute>
-            } 
-          />
-          <Route 
-            path='/dashboard/ai-analysis' 
-            element={
-              <PrivateRoute>
-                <AIAnalysis />
-              </PrivateRoute>
-            } 
-          />
-          <Route 
-            path='/dashboard/settings' 
-            element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            } 
-          />
-        </Routes>
-      </BrowserRouter>
-    </AuthContext.Provider>
+    <Provider store={store}>
+      <Router>
+        <AppContent />
+      </Router>
+    </Provider>
   );
 }
 

@@ -15,7 +15,7 @@ async function verifyGeminiModel() {
       return true;
     }
   } catch (error) {
-    console.log('Gemini model verification failed:', error.message);
+    console.log('Gemini model verification failed:', error);
     return false;
   }
   return false;
@@ -58,20 +58,25 @@ try {
   // Initialize Gemini API if the API key is available
   if (process.env.GEMINI_API_KEY) {
     genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    // Update to use the latest model name
-    // Try first with gemini-1.5-pro, fallback to gemini-pro-latest if needed
     try {
-      model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-      console.log('Gemini AI initialized successfully with gemini-1.5-pro model');
+      // Use Gemini 1.5 Flash model
+      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      console.log('Gemini AI initialized successfully with gemini-1.5-flash model');
     } catch (modelError) {
-      // If the first model fails, try the alternative
+      console.log('Failed to initialize gemini-1.5-flash model:', modelError.message);
       try {
-        model = genAI.getGenerativeModel({ model: "gemini-pro-latest" });
-        console.log('Gemini AI initialized successfully with gemini-pro-latest model');
+        // Fallback to basic model for free tier
+        model = genAI.getGenerativeModel({ model: "gemini" });
+        console.log('Gemini AI initialized successfully with basic gemini model');
       } catch (alternativeError) {
-        // Last resort: try with gemini-pro
-        model = genAI.getGenerativeModel({ model: "gemini-pro" });
-        console.log('Gemini AI initialized successfully with gemini-pro model');
+        console.log('Failed to initialize basic gemini model:', alternativeError.message);
+        try {
+          // Fallback to gemini-1.0-base
+          model = genAI.getGenerativeModel({ model: "gemini-1.0-base" });
+          console.log('Gemini AI initialized successfully with gemini-1.0-base model');
+        } catch (finalError) {
+          console.log('All Gemini models failed to initialize:', finalError.message);
+        }
       }
     }
   } else {
@@ -519,16 +524,30 @@ Your task: ${customPrompt.trim()}
 Here's a summary of each sheet:
 `;
           
+          // Reduce data volume with abstracted sheet summaries
           for (const [sheetName, data] of Object.entries(extractedData)) {
             prompt += `
 Sheet: ${sheetName}
 - Rows: ${data.rows}
 - Columns: ${data.columns}
 - Headers: ${JSON.stringify(data.headers)}
-          
-Sample data (first 10 rows):
-${data.sample.slice(0, 10).map(row => JSON.stringify(row)).join('\n')}
 `;
+            
+            // Only add a few sample rows to reduce token count
+            if (data.sample && data.sample.length > 1) {
+              prompt += `
+Sample data (first 3 rows):
+`;
+              // Only include first 3 rows maximum
+              const limitedSample = data.sample.slice(0, Math.min(3, data.sample.length));
+              // For each row, only include a subset of columns if there are many
+              for (const row of limitedSample) {
+                const summarizedRow = data.columns > 5 
+                  ? JSON.stringify(row.slice(0, 5)) + "... (truncated)" 
+                  : JSON.stringify(row);
+                prompt += `${summarizedRow}\n`;
+              }
+            }
           }
           
           // Make it crystal clear that we want a direct answer to the custom prompt
@@ -545,16 +564,28 @@ File contains ${Object.keys(extractedData).length} sheets with a total of ${tota
 Here's a summary of each sheet:
 `;
           
+          // Reduce data volume with abstracted sheet summaries
           for (const [sheetName, data] of Object.entries(extractedData)) {
             prompt += `
 Sheet: ${sheetName}
 - Rows: ${data.rows}
 - Columns: ${data.columns}
-- Headers: ${data.headers.join(', ')}
+- Headers: ${data.headers.slice(0, 5).join(', ')}${data.headers.length > 5 ? '... (truncated)' : ''}
             
-Sample data (up to 10 rows):
-${data.sample.slice(0, 10).map(row => JSON.stringify(row)).join('\n')}
 `;
+            // Only add a few sample rows to reduce token count
+            if (data.sample && data.sample.length > 1) {
+              prompt += `Sample data (first 3 rows):\n`;
+              // Only include first 3 rows maximum
+              const limitedSample = data.sample.slice(0, Math.min(3, data.sample.length));
+              // For each row, only include a subset of columns if there are many
+              for (const row of limitedSample) {
+                const summarizedRow = data.columns > 5 
+                  ? JSON.stringify(row.slice(0, 5)) + "... (truncated)" 
+                  : JSON.stringify(row);
+                prompt += `${summarizedRow}\n`;
+              }
+            }
           }
           
           prompt += `
@@ -567,6 +598,8 @@ Based on this data, please provide:
 If there's not enough information to provide a complete analysis, focus on what you can discern from the available data.
 `;
         }
+        
+        console.log('Sending prompt to Gemini API with length:', prompt.length);
 
         // Generate content with Gemini
         const result = await model.generateContent(prompt);
@@ -810,61 +843,167 @@ function processCustomExtraction(customPrompt, allRows, extractedData) {
   return null;
 }
 
-/**
- * Generate basic analysis based on file properties and extracted data
- * @param {Object} fileData - The file data object
- * @param {Object} extractedData - The extracted data from the Excel file
- * @returns {Object} - The basic analysis
- */
+// Enhanced function to generate basic analysis without relying on AI
 function generateBasicAnalysis(fileData, extractedData) {
-  const fileName = fileData.originalName || fileData.filename;
-  const fileSize = fileData.size || 1000000;
+  // Start with a basic template
+  const analysis = {
+    summary: `Analysis of ${fileData.originalName}`,
+    insights: [],
+    recommendations: [],
+    dataQualityIssues: []
+  };
   
-  // Calculate total rows and columns
+  // Enhanced summary with file details
+  analysis.summary = `This is an Excel file named "${fileData.originalName}" with a size of ${(fileData.size / 1024 / 1024).toFixed(2)} MB. The file contains ${Object.keys(extractedData).length} sheets.`;
+  
+  // Calculate and add sheet statistics
   let totalRows = 0;
   let totalColumns = 0;
-  const sheetNames = Object.keys(extractedData);
+  const sheetDetails = [];
   
-  sheetNames.forEach(sheetName => {
-    const sheetData = extractedData[sheetName];
-    totalRows += sheetData.rows;
-    totalColumns = Math.max(totalColumns, sheetData.columns);
-  });
+  for (const [sheetName, data] of Object.entries(extractedData)) {
+    totalRows += data.rows;
+    totalColumns = Math.max(totalColumns, data.columns);
+    sheetDetails.push(`Sheet "${sheetName}": ${data.rows} rows and ${data.columns} columns`);
   
-  // Generate column names from headers
-  const columnNames = [];
-  if (sheetNames.length > 0) {
-    const firstSheet = extractedData[sheetNames[0]];
-    if (firstSheet.headers && firstSheet.headers.length > 0) {
-      firstSheet.headers.forEach(header => {
-        if (header && header.toString().trim()) {
-          columnNames.push(header.toString().trim());
-        }
-      });
+    // Look for data patterns in each sheet
+    const insights = analyzeSheetData(data);
+    if (insights) {
+      analysis.insights.push(...insights);
+    }
+    
+    // Check for data quality issues
+    const dataIssues = checkDataQuality(data);
+    if (dataIssues) {
+      analysis.dataQualityIssues.push(...dataIssues);
     }
   }
   
-  // Get a few column names to reference in insights
-  const sampleColumns = columnNames.slice(0, 3).filter(Boolean);
+  // Add total counts to summary
+  analysis.summary += ` It contains a total of ${totalRows} rows across all sheets.`;
   
-  return {
-    summary: `${fileName} contains ${totalRows} rows and ${totalColumns} columns across ${sheetNames.length} sheet(s): ${sheetNames.join(', ')}.`,
-    insights: [
-      `The file contains data organized into ${sheetNames.length} sheet(s) with a total of ${totalRows} records.`,
-      sampleColumns.length > 0 ? `Key columns include: ${sampleColumns.join(', ')}` : `The file has ${totalColumns} columns of data.`,
-      `The data appears to be ${fileName.includes('Report') ? 'a report' : 'a dataset'} with ${totalRows} entries.`
-    ],
-    recommendations: [
-      `Review the data in ${sheetNames[0] || 'the first sheet'} as it contains the most information.`,
-      `Consider creating visualizations for key metrics to better understand trends.`,
-      `Analyze patterns over time if date information is available in the dataset.`
-    ],
-    dataQualityIssues: [
-      `Check for missing values in important columns.`,
-      `Verify data consistency across sheets.`,
-      `Ensure numeric columns are properly formatted for analysis.`
-    ]
-  };
+  // Add default insights if none were found
+  if (analysis.insights.length === 0) {
+    analysis.insights.push(
+      `The file contains ${Object.keys(extractedData).length} sheets with a total of ${totalRows} rows.`,
+      `Sheet structure: ${sheetDetails.join(', ')}`
+    );
+  }
+  
+  // Add default recommendations
+  analysis.recommendations.push(
+    'Consider using AI analysis during non-peak hours for more detailed insights.',
+    'For large files, try analyzing individual sheets for better performance.',
+    'Review data quality issues to improve analysis results.'
+  );
+  
+  // Add default data quality issues if none found
+  if (analysis.dataQualityIssues.length === 0) {
+    analysis.dataQualityIssues.push(
+      'Basic data analysis completed without AI. Some data quality issues might not be detected.'
+    );
+        }
+  
+  return analysis;
+  }
+  
+// Function to identify patterns in sheet data
+function analyzeSheetData(sheetData) {
+  const insights = [];
+  
+  // Check if there's sample data to analyze
+  if (!sheetData.sample || sheetData.sample.length < 2) {
+    return ['Not enough data to determine patterns'];
+  }
+  
+  // Count numeric vs text columns
+  let numericColumns = 0;
+  let dateColumns = 0;
+  let textColumns = 0;
+  
+  // Simple analysis on first row of data (after headers)
+  const dataRow = sheetData.sample[1] || [];
+  for (let i = 0; i < dataRow.length; i++) {
+    const cell = dataRow[i];
+    if (typeof cell === 'number') {
+      numericColumns++;
+    } else if (cell && !isNaN(Date.parse(cell))) {
+      dateColumns++;
+    } else if (cell) {
+      textColumns++;
+    }
+  }
+  
+  // Add insights based on column types
+  if (numericColumns > 0) {
+    insights.push(`Contains approximately ${numericColumns} columns with numeric data, potentially suitable for calculations or charts.`);
+  }
+  
+  if (dateColumns > 0) {
+    insights.push(`Contains approximately ${dateColumns} columns with date information, useful for timeline analysis.`);
+  }
+  
+  if (textColumns > 0) {
+    insights.push(`Contains approximately ${textColumns} columns with text data, which may include categories or descriptions.`);
+  }
+  
+  if (sheetData.rows > 100) {
+    insights.push(`Large dataset with ${sheetData.rows} rows. Consider sampling or filtering for better performance.`);
+  }
+  
+  return insights;
+}
+
+// Function to check for common data quality issues
+function checkDataQuality(sheetData) {
+  const issues = [];
+  
+  // Check if there's sample data to analyze
+  if (!sheetData.sample || sheetData.sample.length < 2) {
+    return ['Limited sample data available to assess quality'];
+  }
+  
+  // Check for missing headers
+  if (sheetData.headers.some(header => !header || header === '')) {
+    issues.push('Some columns are missing headers, which may affect data interpretation.');
+  }
+  
+  // Check for potentially empty columns
+  const emptyCols = [];
+  for (let i = 0; i < sheetData.headers.length; i++) {
+    let isEmpty = true;
+    for (let j = 1; j < Math.min(sheetData.sample.length, 10); j++) {
+      if (sheetData.sample[j][i]) {
+        isEmpty = false;
+        break;
+      }
+    }
+    if (isEmpty) {
+      emptyCols.push(sheetData.headers[i] || `Column ${i+1}`);
+    }
+  }
+  
+  if (emptyCols.length > 0) {
+    issues.push(`Potential empty columns detected: ${emptyCols.join(', ')}. Consider removing them to improve analysis.`);
+  }
+  
+  // Simple check for duplicated headers
+  const headerCounts = {};
+  for (const header of sheetData.headers) {
+    if (header) {
+      headerCounts[header] = (headerCounts[header] || 0) + 1;
+    }
+  }
+  
+  const duplicatedHeaders = Object.entries(headerCounts)
+    .filter(([header, count]) => count > 1)
+    .map(([header]) => header);
+  
+  if (duplicatedHeaders.length > 0) {
+    issues.push(`Duplicated column headers found: ${duplicatedHeaders.join(', ')}. This may cause confusion in data analysis.`);
+  }
+  
+  return issues;
 }
 
 /**
@@ -1025,16 +1164,30 @@ Your task: ${customPrompt.trim()}
 Here's a summary of each sheet:
 `;
           
+          // Reduce data volume with abstracted sheet summaries
           for (const [sheetName, data] of Object.entries(extractedData)) {
             prompt += `
 Sheet: ${sheetName}
 - Rows: ${data.rows}
 - Columns: ${data.columns}
 - Headers: ${JSON.stringify(data.headers)}
-          
-Sample data (first 10 rows):
-${data.sample.slice(0, 10).map(row => JSON.stringify(row)).join('\n')}
 `;
+            
+            // Only add a few sample rows to reduce token count
+            if (data.sample && data.sample.length > 1) {
+              prompt += `
+Sample data (first 3 rows):
+`;
+              // Only include first 3 rows maximum
+              const limitedSample = data.sample.slice(0, Math.min(3, data.sample.length));
+              // For each row, only include a subset of columns if there are many
+              for (const row of limitedSample) {
+                const summarizedRow = data.columns > 5 
+                  ? JSON.stringify(row.slice(0, 5)) + "... (truncated)" 
+                  : JSON.stringify(row);
+                prompt += `${summarizedRow}\n`;
+              }
+            }
           }
           
           // Make it crystal clear that we want a direct answer to the custom prompt
@@ -1051,16 +1204,28 @@ File contains ${Object.keys(extractedData).length} sheets with a total of ${tota
 Here's a summary of each sheet:
 `;
           
+          // Reduce data volume with abstracted sheet summaries
           for (const [sheetName, data] of Object.entries(extractedData)) {
             prompt += `
 Sheet: ${sheetName}
 - Rows: ${data.rows}
 - Columns: ${data.columns}
-- Headers: ${data.headers.join(', ')}
+- Headers: ${data.headers.slice(0, 5).join(', ')}${data.headers.length > 5 ? '... (truncated)' : ''}
             
-Sample data (up to 10 rows):
-${data.sample.slice(0, 10).map(row => JSON.stringify(row)).join('\n')}
 `;
+            // Only add a few sample rows to reduce token count
+            if (data.sample && data.sample.length > 1) {
+              prompt += `Sample data (first 3 rows):\n`;
+              // Only include first 3 rows maximum
+              const limitedSample = data.sample.slice(0, Math.min(3, data.sample.length));
+              // For each row, only include a subset of columns if there are many
+              for (const row of limitedSample) {
+                const summarizedRow = data.columns > 5 
+                  ? JSON.stringify(row.slice(0, 5)) + "... (truncated)" 
+                  : JSON.stringify(row);
+                prompt += `${summarizedRow}\n`;
+              }
+            }
           }
           
           prompt += `
@@ -1073,6 +1238,8 @@ Based on this data, please provide:
 If there's not enough information to provide a complete analysis, focus on what you can discern from the available data.
 `;
         }
+        
+        console.log('Sending prompt to Gemini API with length:', prompt.length);
 
         // Generate content with Gemini
         const result = await model.generateContent(prompt);

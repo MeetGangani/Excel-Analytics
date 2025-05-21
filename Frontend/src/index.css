@@ -2,34 +2,115 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom styles for modern UI */
-@layer components {
-  .dashboard-card {
-    @apply bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 p-6 border border-gray-200;
+/* Custom styles */
+:focus {
+  outline: none;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background-color: #001374;
+  color: #334155;
+  overflow-x: hidden;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  min-height: 100vh;
+}
+
+/* Animation for loading spinner */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
-  
-  .btn-primary {
-    @apply px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors;
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
   }
-  
-  .btn-secondary {
-    @apply px-4 py-2 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors;
+  to {
+    opacity: 1;
   }
-  
-  .interactive-card {
-    @apply transform transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl;
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Custom utilities */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Custom form inputs */
+.form-input:focus {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Fullscreen utilities */
+.h-screen-fixed {
+  height: 100vh; /* Fallback */
+  height: 100dvh; /* Modern viewport units */
+}
+
+.min-h-screen-fixed {
+  min-height: 100vh; /* Fallback */
+  min-height: 100dvh; /* Modern viewport units */
+}
+
+/* Container sizing */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+}
+
+@media (min-width: 640px) {
+  .container {
+    max-width: 640px;
   }
-  
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    @apply w-2;
+}
+
+@media (min-width: 768px) {
+  .container {
+    max-width: 768px;
   }
-  
-  ::-webkit-scrollbar-track {
-    @apply bg-gray-100 rounded-full;
+}
+
+@media (min-width: 1024px) {
+  .container {
+    max-width: 1024px;
   }
-  
-  ::-webkit-scrollbar-thumb {
-    @apply bg-indigo-200 rounded-full hover:bg-indigo-300;
+}
+
+@media (min-width: 1280px) {
+  .container {
+    max-width: 1280px;
+  }
+}
+
+@media (min-width: 1536px) {
+  .container {
+    max-width: 1536px;
   }
 }
