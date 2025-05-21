@@ -12,7 +12,6 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
 const Dashboard = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [fileToAnalyze, setFileToAnalyze] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   
@@ -22,32 +21,29 @@ const Dashboard = () => {
   
   const { user } = useSelector((state) => state.auth);
   const { files, isLoading } = useSelector((state) => state.files);
+  
+  // Analytics stats
+  const [analyzeCount, setAnalyzeCount] = useState(0);
+  const [visualizationCount, setVisualizationCount] = useState(0);
 
   useEffect(() => {
     if (!user) {
       navigate('/login');
     } else {
       dispatch(getFiles());
+      
+      // Load analytics counts from localStorage or API
+      const storedAnalyzeCount = localStorage.getItem('analyzeCount');
+      const storedVisualizationCount = localStorage.getItem('visualizationCount');
+      
+      setAnalyzeCount(storedAnalyzeCount ? parseInt(storedAnalyzeCount) : 0);
+      setVisualizationCount(storedVisualizationCount ? parseInt(storedVisualizationCount) : 0);
     }
 
     return () => {
       dispatch(reset());
     };
   }, [user, navigate, dispatch]);
-
-  // Handle sidebar visibility on window resize
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) { // md breakpoint
-        setSidebarOpen(false);
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    handleResize(); // Initialize on component mount
-
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const handleDeleteFile = (id) => {
     if (deleteConfirm === id) {
@@ -65,6 +61,18 @@ const Dashboard = () => {
 
   const handleAnalyzeFile = (file) => {
     setFileToAnalyze(file);
+    
+    // Increment analyze count
+    const newCount = analyzeCount + 1;
+    setAnalyzeCount(newCount);
+    localStorage.setItem('analyzeCount', newCount.toString());
+  };
+  
+  // Function to increment visualization count (can be called from child components)
+  const incrementVisualizationCount = () => {
+    const newCount = visualizationCount + 1;
+    setVisualizationCount(newCount);
+    localStorage.setItem('visualizationCount', newCount.toString());
   };
 
   const formatDate = (dateString) => {
@@ -81,18 +89,6 @@ const Dashboard = () => {
   const totalStorage = files.reduce((total, file) => total + file.size, 0);
   const storageUsedMB = (totalStorage / (1024 * 1024)).toFixed(2);
   const storagePercent = Math.min(Math.round((totalStorage / (50 * 1024 * 1024)) * 100), 100);
-
-  // Toggle sidebar
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
-  
-  // Close sidebar specifically (for mobile)
-  const closeSidebar = () => {
-    setSidebarOpen(false);
-  };
-
-  // No longer need isActive function since we're using location.pathname directly
 
   if (!user) {
     return null;
@@ -173,7 +169,10 @@ const Dashboard = () => {
                         </svg>
                       </button>
                       <button
-                        onClick={() => navigate(`/dashboard/files/visualize/${file.id}`)}
+                        onClick={() => {
+                          navigate(`/dashboard/files/visualize/${file.id}`);
+                          incrementVisualizationCount();
+                        }}
                         className="text-amber-600 hover:text-amber-900 transition-colors"
                       >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -214,7 +213,19 @@ const Dashboard = () => {
     <>
       {/* Stats section */}
       <div className="mb-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Analytics Overview</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-medium text-gray-900">Analytics Overview</h2>
+          
+          {/* Storage indicator moved here from sidebar */}
+          <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2 pr-4">
+            <div className="text-sm text-gray-700 whitespace-nowrap">Storage: <span className="text-blue-600 font-medium">{storageUsedMB} MB</span></div>
+            <div className="w-24 bg-gray-200 rounded-full h-1.5">
+              <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${storagePercent}%` }}></div>
+            </div>
+            <div className="text-xs text-gray-500">{storagePercent}%</div>
+          </div>
+        </div>
+        
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <motion.div 
             whileHover={{ y: -5, transition: { duration: 0.2 } }}
@@ -249,7 +260,7 @@ const Dashboard = () => {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900">0</h3>
+                  <h3 className="text-2xl font-bold text-gray-900">{analyzeCount}</h3>
                   <p className="text-sm text-gray-500">Analyses Performed</p>
                 </div>
               </div>
@@ -270,7 +281,7 @@ const Dashboard = () => {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900">0</h3>
+                  <h3 className="text-2xl font-bold text-gray-900">{visualizationCount}</h3>
                   <p className="text-sm text-gray-500">Visualizations Created</p>
                 </div>
               </div>
@@ -284,218 +295,49 @@ const Dashboard = () => {
   );
 
   return (
-    <div className="pt-16 min-h-screen flex bg-gray-50">
-      {/* Mobile sidebar overlay for closing */}
-      {sidebarOpen && (
-        <div 
-          className="md:hidden fixed inset-0 bg-gray-600 bg-opacity-50 z-20" 
-          onClick={closeSidebar}
-          aria-hidden="true"
-        ></div>
-      )}
-      
-      {/* Mobile-only hamburger button */}
-      <button 
-        onClick={toggleSidebar}
-        className={`fixed top-20 left-4 z-40 p-2 rounded-md bg-white shadow-md text-gray-700 hover:bg-gray-100 transition-colors md:hidden ${sidebarOpen ? 'hidden' : 'block'}`}
-        aria-label="Open sidebar"
-        type="button"
-      >
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      </button>
-      
-      {/* Sidebar */}
-      <aside 
-        className={`fixed md:sticky top-16 left-0 h-[calc(100vh-64px)] bg-white border-r border-gray-200 w-64 transform transition-transform duration-300 ease-in-out z-30 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:translate-x-0`}
-      >
-        <div className="h-full overflow-y-auto">
-          <div className="p-6 h-full flex flex-col">
-                         {/* Sidebar header with close button */}
-             <div className="flex items-center justify-end mb-6">
-               <button 
-                 onClick={closeSidebar}
-                 className="md:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
-                 aria-label="Close sidebar"
-                 type="button"
-               >
-                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                 </svg>
-               </button>
-             </div>
-            
-            {/* Navigation */}
-            <nav className="space-y-1 mt-6">
-              {/* Dashboard Home */}
-                             <Link
-                to="/dashboard"
-                className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-left text-sm transition-colors ${
-                  location.pathname === '/dashboard' || location.pathname === '/dashboard/'
-                    ? 'bg-blue-50 text-blue-600 font-medium' 
-                    : 'hover:bg-gray-50 text-gray-700'
-                }`}
-              >
-                <div className="flex items-center">
-                  <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                  </svg>
-                  <span>Dashboard</span>
-                </div>
-              </Link>
-
-              {/* Upload Files */}
-              <Link
-                to="/dashboard/files/upload"
-                className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-left text-sm transition-colors ${
-                  location.pathname.includes('/dashboard/files/upload')
-                    ? 'bg-blue-50 text-blue-600 font-medium' 
-                    : 'hover:bg-gray-50 text-gray-700'
-                }`}
-              >
-                <div className="flex items-center">
-                  <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <span>Upload Files</span>
-                </div>
-              </Link>
-              
-              {/* Analyze Data */}
-              <Link
-                to="/dashboard/files/analyze"
-                className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-left text-sm transition-colors ${
-                  location.pathname === '/dashboard/files/analyze'
-                    ? 'bg-blue-50 text-blue-600 font-medium' 
-                    : 'hover:bg-gray-50 text-gray-700'
-                }`}
-              >
-                <div className="flex items-center">
-                  <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  <span>Analyze Files</span>
-                </div>
-              </Link>
-              
-              {/* Quick Analysis */}
-              <Link
-                to="/dashboard/files/quickanalyze"
-                className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-left text-sm transition-colors ${
-                  location.pathname === '/dashboard/files/quickanalyze'
-                    ? 'bg-blue-50 text-blue-600 font-medium' 
-                    : 'hover:bg-gray-50 text-gray-700'
-                }`}
-              >
-                <div className="flex items-center">
-                  <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  <span>Quick Analysis</span>
-                </div>
-              </Link>
-              
-              {/* Visualize */}
-              <Link
-                to="/dashboard/files/visualize"
-                className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-left text-sm transition-colors ${
-                  location.pathname.includes('/dashboard/files/visualize')
-                    ? 'bg-blue-50 text-blue-600 font-medium' 
-                    : 'hover:bg-gray-50 text-gray-700'
-                }`}
-              >
-                <div className="flex items-center">
-                  <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-                  </svg>
-                  <span>Visualize</span>
-                </div>
-              </Link>
-
-              {/* File Manager */}
-              <Link
-                to="/dashboard/files/manage"
-                className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-left text-sm transition-colors ${
-                  location.pathname.includes('/dashboard/files/manage')
-                    ? 'bg-blue-50 text-blue-600 font-medium' 
-                    : 'hover:bg-gray-50 text-gray-700'
-                }`}
-              >
-                <div className="flex items-center">
-                  <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                  </svg>
-                  <span>File Manager</span>
-                </div>
-              </Link>
-            </nav>
-            
-            <div className="mt-auto">
-              <div className="border-t border-gray-200 pt-4 mt-6">
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="text-gray-700">Storage</span>
-                    <span className="text-blue-600 font-medium">{storageUsedMB} MB</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-1.5">
-                    <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${storagePercent}%` }}></div>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">{storagePercent}% of 50MB used</p>
-                </div>
-                
-                {/* Storage indicator instead of user profile */}
-              </div>
-            </div>
-          </div>
-        </div>
-      </aside>
-      
+    <div className="pt-16 min-h-screen bg-gray-50">
       {/* Main content */}
-      <main className="flex-1 p-6">
+      <main className="p-6">
         <div className="max-w-7xl mx-auto">
           <Routes>
-                         <Route path="/" element={<DashboardHome />} />
-             <Route path="files/upload" element={<FileUpload />} />
-                           <Route path="files/analyze" element={<FileSelector />} />
-              <Route path="files/quickanalyze" element={<QuickAnalyze />} />
-             <Route path="files/visualize" element={
-               <div>
-                 <h2 className="text-lg font-semibold text-gray-800 mb-4">Create Visualizations</h2>
-                 <div className="grid md:grid-cols-3 gap-6">
-                   <div className="md:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                     <ChartSelector />
-                   </div>
-                   <div className="md:col-span-2">
-                     <ChartVisualization />
-                   </div>
-                 </div>
-               </div>
-             } />
-             <Route path="files/visualize/:fileId" element={
-               <div>
-                 <h2 className="text-lg font-semibold text-gray-800 mb-4">Visualize File Data</h2>
-                 <div className="grid md:grid-cols-3 gap-6">
-                   <div className="md:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                     <ChartSelector />
-                   </div>
-                   <div className="md:col-span-2">
-                     <ChartVisualization />
-                   </div>
-                 </div>
-               </div>
-             } />
-             <Route path="files/manage" element={
-               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                 <h2 className="text-lg font-semibold text-gray-800 mb-4">File Manager</h2>
-                 <FileList />
-               </div>
-             } />
-             {/* Default route */}
-             <Route index element={<DashboardHome />} />
+            <Route path="/" element={<DashboardHome />} />
+            <Route path="files/upload" element={<FileUpload />} />
+            <Route path="files/analyze" element={<FileSelector />} />
+            <Route path="files/quickanalyze" element={<QuickAnalyze />} />
+            <Route path="files/visualize" element={
+              <div>
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">Create Visualizations</h2>
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div className="md:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <ChartSelector />
+                  </div>
+                  <div className="md:col-span-2">
+                    <ChartVisualization onChartCreated={incrementVisualizationCount} />
+                  </div>
+                </div>
+              </div>
+            } />
+            <Route path="files/visualize/:fileId" element={
+              <div>
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">Visualize File Data</h2>
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div className="md:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <ChartSelector />
+                  </div>
+                  <div className="md:col-span-2">
+                    <ChartVisualization onChartCreated={incrementVisualizationCount} />
+                  </div>
+                </div>
+              </div>
+            } />
+            <Route path="files/manage" element={
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">File Manager</h2>
+                <FileList />
+              </div>
+            } />
+            {/* Default route */}
+            <Route index element={<DashboardHome />} />
           </Routes>
         </div>
       </main>

@@ -57,6 +57,7 @@ const initialState = {
   selectedColumns: {
     x: '',
     y: '',
+    z: '',
   },
   availableColumns: [],
   isLoading: false,
@@ -97,7 +98,7 @@ const chartSlice = createSlice({
       }
 
       const { data } = state.fileData;
-      const { x, y } = state.selectedColumns;
+      const { x, y, z } = state.selectedColumns;
 
       // Extract labels (x-axis data)
       const labels = data.map(item => item[x]);
@@ -106,6 +107,7 @@ const chartSlice = createSlice({
       // Extract dataset (y-axis data)
       const values = data.map(item => parseFloat(item[y]) || 0);
       
+      // Create the first dataset (always needed)
       state.chartConfig.datasets = [
         {
           label: state.chartConfig.datasetLabel || y,
@@ -115,6 +117,18 @@ const chartSlice = createSlice({
           borderWidth: 1,
         },
       ];
+      
+      // Add a second dataset for z values if present (for 3D charts)
+      if (z && (state.chartConfig.type === '3d-scatter' || state.chartConfig.type === '3d-surface')) {
+        const zValues = data.map(item => parseFloat(item[z]) || 0);
+        state.chartConfig.datasets.push({
+          label: z,
+          data: zValues,
+          backgroundColor: state.chartConfig.backgroundColor[1],
+          borderColor: state.chartConfig.borderColor[1],
+          borderWidth: 1,
+        });
+      }
     },
   },
   extraReducers: (builder) => {
@@ -133,6 +147,7 @@ const chartSlice = createSlice({
         state.selectedColumns = {
           x: state.availableColumns[0] || '',
           y: state.availableColumns[1] || '',
+          z: state.availableColumns[2] || '',
         };
       })
       .addCase(fetchFileData.rejected, (state, action) => {

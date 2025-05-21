@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { 
   Chart as ChartJS, 
@@ -19,6 +19,7 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import Plot from 'react-plotly.js';
 
 // Register the chart.js components
 ChartJS.register(
@@ -35,13 +36,27 @@ ChartJS.register(
   Filler
 );
 
-const ChartVisualization = () => {
+const ChartVisualization = ({ onChartCreated }) => {
   const chartRef = useRef(null);
   const [exportFormat, setExportFormat] = useState('png');
   const { chartConfig, fileData, selectedColumns } = useSelector(state => state.charts);
+  const [chartRendered, setChartRendered] = useState(false);
   
   // Check if we have data to display
   const hasData = chartConfig.datasets.length > 0 && chartConfig.labels.length > 0;
+
+  // Call onChartCreated callback when a chart is successfully rendered for the first time
+  useEffect(() => {
+    if (hasData && !chartRendered && onChartCreated) {
+      setChartRendered(true);
+      onChartCreated();
+    }
+  }, [hasData, chartRendered, onChartCreated]);
+  
+  // Reset chartRendered when the chart type or data changes
+  useEffect(() => {
+    setChartRendered(false);
+  }, [chartConfig.type, chartConfig.datasets]);
   
   // Common chart options
   const chartOptions = {
@@ -60,6 +75,12 @@ const ChartVisualization = () => {
       },
       tooltip: {
         enabled: true,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        titleFont: { size: 14 },
+        bodyFont: { size: 13 },
+        padding: 10,
+        cornerRadius: 6,
+        displayColors: true,
       },
     },
     scales: chartConfig.type === 'pie' || chartConfig.type === 'doughnut' || chartConfig.type === 'polarArea' 
@@ -69,16 +90,28 @@ const ChartVisualization = () => {
             title: {
               display: true,
               text: selectedColumns.x,
+              font: { weight: 'bold' }
             },
+            grid: {
+              color: 'rgba(0, 0, 0, 0.05)',
+            }
           },
           y: {
             title: {
               display: true,
               text: selectedColumns.y,
+              font: { weight: 'bold' }
             },
             beginAtZero: true,
+            grid: {
+              color: 'rgba(0, 0, 0, 0.05)',
+            }
           },
         },
+    animation: {
+      duration: 1000,
+      easing: 'easeOutQuart'
+    },
   };
   
   // Prepare the chart data
@@ -92,37 +125,61 @@ const ChartVisualization = () => {
     if (!chartRef.current) return;
     
     try {
+      toast.loading('Preparing export...');
       const chartElement = chartRef.current;
       
       // Create a canvas from the chart
-      const canvas = await html2canvas(chartElement);
+      const canvas = await html2canvas(chartElement, {
+        scale: 2, // Increase resolution
+        backgroundColor: '#FFFFFF',
+        logging: false,
+      });
       
       if (exportFormat === 'png') {
         // For PNG, create a download link
-        const image = canvas.toDataURL('image/png');
+        const image = canvas.toDataURL('image/png', 1.0);
         const link = document.createElement('a');
-        link.download = `chart-${Date.now()}.png`;
+        const filename = `${chartConfig.title || 'chart'}-${new Date().toISOString().slice(0, 10)}.png`;
+        link.download = filename;
         link.href = image;
         link.click();
-        toast.success('Chart exported as PNG');
+        toast.dismiss();
+        toast.success(`Chart exported as: ${filename}`);
       } else {
         // For PDF
-        const imgData = canvas.toDataURL('image/png');
+        const imgData = canvas.toDataURL('image/png', 1.0);
         const pdf = new jsPDF({
           orientation: 'landscape',
+          unit: 'mm',
         });
+        
+        // Add a title to the PDF
+        pdf.setFontSize(16);
+        pdf.text(chartConfig.title || 'Chart Export', 14, 15);
+        
+        // Add metadata
+        pdf.setFontSize(10);
+        pdf.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
+        if (fileData && fileData.sheetName) {
+          pdf.text(`Source: ${fileData.sheetName}`, 14, 27);
+        }
         
         // Calculate dimensions to fit the chart
         const imgProps = pdf.getImageProperties(imgData);
-        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfWidth = pdf.internal.pageSize.getWidth() - 28; // margins
         const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
         
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`chart-${Date.now()}.pdf`);
-        toast.success('Chart exported as PDF');
+        // Add the chart image
+        pdf.addImage(imgData, 'PNG', 14, 35, pdfWidth, pdfHeight);
+        
+        const filename = `${chartConfig.title || 'chart'}-${new Date().toISOString().slice(0, 10)}.pdf`;
+        pdf.save(filename);
+        toast.dismiss();
+        toast.success(`Chart exported as: ${filename}`);
       }
     } catch (error) {
       console.error('Error exporting chart:', error);
+      toast.dismiss();
       toast.error('Failed to export chart');
     }
   };
@@ -143,6 +200,105 @@ const ChartVisualization = () => {
       );
     }
     
+    // For 3D charts using Plotly
+    if (chartConfig.type === '3d-scatter' || chartConfig.type === '3d-surface') {
+      // Get data ready for Plotly format
+      const plotlyData = [];
+      
+      if (chartConfig.type === '3d-scatter') {
+        // Create 3D scatter plot data
+        const scatterData = {
+          type: 'scatter3d',
+          mode: 'markers',
+          name: chartConfig.datasetLabel || 'Dataset',
+          x: [...chartConfig.labels],
+          y: [...chartConfig.datasets[0].data],
+          z: chartConfig.datasets.length > 1 && chartConfig.datasets[1].data 
+            ? [...chartConfig.datasets[1].data] 
+            : [...Array(chartConfig.labels.length)].map((_, i) => i),
+          marker: {
+            size: 6,
+            color: chartConfig.datasets[0].backgroundColor || 'rgba(75, 192, 192, 0.8)',
+            line: {
+              color: 'rgba(255, 255, 255, 0.5)',
+              width: 0.5
+            },
+            opacity: 0.8
+          }
+        };
+        plotlyData.push(scatterData);
+      } else if (chartConfig.type === '3d-surface') {
+        // Create z data matrix for surface plot
+        // For simple demonstration, we'll use the first dataset
+        const zValues = [...chartConfig.datasets[0].data];
+        
+        // Create a matrix for z values (simple example)
+        const dataLength = Math.ceil(Math.sqrt(zValues.length));
+        const zMatrix = [];
+        for (let i = 0; i < dataLength; i++) {
+          const row = [];
+          for (let j = 0; j < dataLength; j++) {
+            const index = i * dataLength + j;
+            row.push(index < zValues.length ? zValues[index] : 0);
+          }
+          zMatrix.push(row);
+        }
+        
+        const surfaceData = {
+          type: 'surface',
+          z: zMatrix,
+          colorscale: 'Viridis',
+          contours: {
+            z: {
+              show: true,
+              usecolormap: true,
+              highlightcolor: "#42f462",
+              project: {z: true}
+            }
+          }
+        };
+        plotlyData.push(surfaceData);
+      }
+      
+      const plotlyLayout = {
+        title: chartConfig.title,
+        autosize: true,
+        margin: {
+          l: 0,
+          r: 0,
+          b: 0,
+          t: 40,
+        },
+        scene: {
+          xaxis: { title: selectedColumns.x },
+          yaxis: { title: selectedColumns.y },
+          zaxis: { title: chartConfig.datasets.length > 1 ? selectedColumns.z : 'Index' }
+        }
+      };
+
+      const plotlyConfig = {
+        responsive: true,
+        displayModeBar: true,
+        toImageButtonOptions: {
+          format: 'png',
+          filename: `${chartConfig.title || 'chart'}-${new Date().toISOString().slice(0, 10)}`,
+          height: 800,
+          width: 1200,
+          scale: 2
+        }
+      };
+      
+      return (
+        <Plot
+          data={plotlyData}
+          layout={plotlyLayout}
+          config={plotlyConfig}
+          style={{width: "100%", height: "500px"}}
+        />
+      );
+    }
+    
+    // For regular Chart.js charts
     switch (chartConfig.type) {
       case 'bar':
         return <Bar data={data} options={chartOptions} />;
@@ -182,7 +338,7 @@ const ChartVisualization = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={exportChart}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center shadow-sm"
             >
               <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -193,20 +349,11 @@ const ChartVisualization = () => {
         )}
       </div>
       
-      <div ref={chartRef} className="mt-4 chart-container p-4 bg-white rounded-lg">
+      <div ref={chartRef} className="mt-4 chart-container p-4 bg-white rounded-lg border border-gray-100">
         {renderChart()}
       </div>
       
-      {hasData && fileData && (
-        <div className="mt-4 bg-gray-50 rounded-lg p-3 text-xs text-gray-500">
-          <p>
-            Showing data from: {fileData.sheetName || 'Unknown sheet'} | 
-            X-Axis: {selectedColumns.x} | 
-            Y-Axis: {selectedColumns.y} | 
-            Total records: {fileData.totalRows || 0}
-          </p>
-        </div>
-      )}
+            {hasData && fileData && (        <div className="mt-4 bg-gray-50 rounded-lg p-3 text-xs text-gray-500">          <p>            Showing data from: <span className="font-medium">{fileData.sheetName || 'Unknown sheet'}</span> |             X-Axis: <span className="font-medium">{selectedColumns.x}</span> |             Y-Axis: <span className="font-medium">{selectedColumns.y}</span> |             {selectedColumns.z && (chartConfig.type === '3d-scatter' || chartConfig.type === '3d-surface') && (              <>Z-Axis: <span className="font-medium">{selectedColumns.z}</span> | </>            )}            Total records: <span className="font-medium">{fileData.totalRows || 0}</span>            {(chartConfig.type === '3d-scatter' || chartConfig.type === '3d-surface') && (              <span className="ml-2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">3D Chart</span>            )}          </p>        </div>      )}
     </div>
   );
 };
