@@ -93,12 +93,33 @@ const chartSlice = createSlice({
       state.selectedFileId = action.payload;
     },
     generateChartData: (state) => {
-      if (!state.fileData || !state.selectedColumns.x || !state.selectedColumns.y) {
+      if (!state.fileData || !state.fileData.data || !state.fileData.data.length) {
+        console.warn('No file data available for chart generation');
         return;
       }
 
       const { data } = state.fileData;
       const { x, y, z } = state.selectedColumns;
+
+      // Check if we have the required columns
+      if (!x || !y) {
+        console.warn('Required columns (X and Y) not selected for chart generation');
+        
+        // Clear datasets to avoid displaying incorrect data
+        state.chartConfig.labels = [];
+        state.chartConfig.datasets = [];
+        return;
+      }
+
+      // Ensure columns exist in the data
+      if (!data[0].hasOwnProperty(x) || !data[0].hasOwnProperty(y)) {
+        console.warn('Selected columns not found in data');
+        
+        // Clear datasets to avoid displaying incorrect data
+        state.chartConfig.labels = [];
+        state.chartConfig.datasets = [];
+        return;
+      }
 
       // Extract labels (x-axis data)
       const labels = data.map(item => item[x]);
@@ -120,14 +141,17 @@ const chartSlice = createSlice({
       
       // Add a second dataset for z values if present (for 3D charts)
       if (z && (state.chartConfig.type === '3d-scatter' || state.chartConfig.type === '3d-surface')) {
-        const zValues = data.map(item => parseFloat(item[z]) || 0);
-        state.chartConfig.datasets.push({
-          label: z,
-          data: zValues,
-          backgroundColor: state.chartConfig.backgroundColor[1],
-          borderColor: state.chartConfig.borderColor[1],
-          borderWidth: 1,
-        });
+        // Verify Z column exists in data
+        if (data[0].hasOwnProperty(z)) {
+          const zValues = data.map(item => parseFloat(item[z]) || 0);
+          state.chartConfig.datasets.push({
+            label: z,
+            data: zValues,
+            backgroundColor: state.chartConfig.backgroundColor[1],
+            borderColor: state.chartConfig.borderColor[1],
+            borderWidth: 1,
+          });
+        }
       }
     },
   },

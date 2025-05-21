@@ -62,7 +62,7 @@ const ChartSelector = () => {
       dispatch(fetchFileData(fileId));
       
       // Reset column selections when file changes
-      dispatch(setSelectedColumns({ x: '', y: '' }));
+      dispatch(setSelectedColumns({ x: '', y: '', z: '' }));
       
       toast.success('Loading file data for visualization...');
     }

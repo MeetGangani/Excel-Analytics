@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { 
   Chart as ChartJS, 
   CategoryScale,
@@ -20,6 +20,8 @@ import { jsPDF } from 'jspdf';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import Plot from 'react-plotly.js';
+import * as XLSX from 'xlsx';
+import { saveAnalysis } from '../redux/slices/analysisHistorySlice';
 
 // Register the chart.js components
 ChartJS.register(
@@ -37,9 +39,13 @@ ChartJS.register(
 );
 
 const ChartVisualization = ({ onChartCreated }) => {
+  const dispatch = useDispatch();
   const chartRef = useRef(null);
   const [exportFormat, setExportFormat] = useState('png');
-  const { chartConfig, fileData, selectedColumns } = useSelector(state => state.charts);
+  const [dataFormat, setDataFormat] = useState('xlsx');
+  const [showExportOptions, setShowExportOptions] = useState(false);
+  const [showDataExportOptions, setShowDataExportOptions] = useState(false);
+  const { chartConfig, fileData, selectedColumns, selectedFileId } = useSelector(state => state.charts);
   const [chartRendered, setChartRendered] = useState(false);
   
   // Check if we have data to display
@@ -57,6 +63,24 @@ const ChartVisualization = ({ onChartCreated }) => {
   useEffect(() => {
     setChartRendered(false);
   }, [chartConfig.type, chartConfig.datasets]);
+  
+  // Save analysis to history
+  const saveCurrentAnalysis = () => {
+    if (!hasData) return;
+    
+    const analysisData = {
+      chartConfig,
+      selectedColumns,
+      selectedFileId,
+      fileInfo: fileData ? {
+        name: fileData.sheetName,
+        totalRows: fileData.totalRows
+      } : null
+    };
+    
+    dispatch(saveAnalysis(analysisData));
+    toast.success('Analysis saved to history!');
+  };
   
   // Common chart options
   const chartOptions = {
@@ -181,6 +205,62 @@ const ChartVisualization = ({ onChartCreated }) => {
       console.error('Error exporting chart:', error);
       toast.dismiss();
       toast.error('Failed to export chart');
+    }
+  };
+  
+  // Export data in various formats
+  const exportData = () => {
+    if (!fileData || !fileData.data) {
+      toast.error('No data available to export');
+      return;
+    }
+    
+    try {
+      const { data } = fileData;
+      const filename = `${chartConfig.title || 'data'}-${new Date().toISOString().slice(0, 10)}`;
+      
+      if (dataFormat === 'csv') {
+        // Export as CSV
+        const headers = Object.keys(data[0]).join(',');
+        const csvRows = data.map(row => {
+          return Object.values(row).map(value => {
+            // Handle values that might contain commas
+            return typeof value === 'string' && value.includes(',') 
+              ? `"${value}"` 
+              : value;
+          }).join(',');
+        });
+        
+        const csvContent = [headers, ...csvRows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${filename}.csv`;
+        link.click();
+        
+        toast.success(`Data exported as: ${filename}.csv`);
+      } else if (dataFormat === 'json') {
+        // Export as JSON
+        const jsonString = JSON.stringify(data, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${filename}.json`;
+        link.click();
+        
+        toast.success(`Data exported as: ${filename}.json`);
+      } else if (dataFormat === 'xlsx') {
+        // Export as Excel
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
+        XLSX.writeFile(workbook, `${filename}.xlsx`);
+        
+        toast.success(`Data exported as: ${filename}.xlsx`);
+      }
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      toast.error('Failed to export data');
     }
   };
   
@@ -326,25 +406,107 @@ const ChartVisualization = ({ onChartCreated }) => {
         
         {hasData && (
           <div className="flex items-center gap-2">
-            <select
-              value={exportFormat}
-              onChange={(e) => setExportFormat(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 focus:border-blue-500 focus:ring-blue-500"
-            >
-              <option value="png">PNG</option>
-              <option value="pdf">PDF</option>
-            </select>
+            {/* Save Analysis Button */}
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={exportChart}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center shadow-sm"
+              onClick={saveCurrentAnalysis}
+              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center shadow-sm"
             >
               <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
               </svg>
-              Export
+              Save
             </motion.button>
+            
+            {/* Export Data Dropdown */}
+            <div className="relative">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowDataExportOptions(!showDataExportOptions)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center shadow-sm"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Data
+              </motion.button>
+              
+              {showDataExportOptions && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                  <div className="py-1 border border-gray-200 rounded-md">
+                    <div className="px-3 py-2 border-b border-gray-100">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Export Format</label>
+                      <select
+                        value={dataFormat}
+                        onChange={(e) => setDataFormat(e.target.value)}
+                        className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                      >
+                        <option value="xlsx">Excel (.xlsx)</option>
+                        <option value="csv">CSV</option>
+                        <option value="json">JSON</option>
+                      </select>
+                    </div>
+                    <div className="px-3 py-2 text-center">
+                      <button
+                        onClick={() => {
+                          exportData();
+                          setShowDataExportOptions(false);
+                        }}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md text-sm"
+                      >
+                        Download
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Export Chart Dropdown */}
+            <div className="relative">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowExportOptions(!showExportOptions)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center shadow-sm"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export
+              </motion.button>
+              
+              {showExportOptions && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                  <div className="py-1 border border-gray-200 rounded-md">
+                    <div className="px-3 py-2 border-b border-gray-100">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Export Format</label>
+                      <select
+                        value={exportFormat}
+                        onChange={(e) => setExportFormat(e.target.value)}
+                        className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                      >
+                        <option value="png">PNG Image</option>
+                        <option value="pdf">PDF Document</option>
+                      </select>
+                    </div>
+                    <div className="px-3 py-2 text-center">
+                      <button
+                        onClick={() => {
+                          exportChart();
+                          setShowExportOptions(false);
+                        }}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm"
+                      >
+                        Download
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -353,7 +515,22 @@ const ChartVisualization = ({ onChartCreated }) => {
         {renderChart()}
       </div>
       
-            {hasData && fileData && (        <div className="mt-4 bg-gray-50 rounded-lg p-3 text-xs text-gray-500">          <p>            Showing data from: <span className="font-medium">{fileData.sheetName || 'Unknown sheet'}</span> |             X-Axis: <span className="font-medium">{selectedColumns.x}</span> |             Y-Axis: <span className="font-medium">{selectedColumns.y}</span> |             {selectedColumns.z && (chartConfig.type === '3d-scatter' || chartConfig.type === '3d-surface') && (              <>Z-Axis: <span className="font-medium">{selectedColumns.z}</span> | </>            )}            Total records: <span className="font-medium">{fileData.totalRows || 0}</span>            {(chartConfig.type === '3d-scatter' || chartConfig.type === '3d-surface') && (              <span className="ml-2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">3D Chart</span>            )}          </p>        </div>      )}
+      {hasData && fileData && (
+        <div className="mt-4 bg-gray-50 rounded-lg p-3 text-xs text-gray-500">
+          <p>
+            Showing data from: <span className="font-medium">{fileData.sheetName || 'Unknown sheet'}</span> | 
+            X-Axis: <span className="font-medium">{selectedColumns.x}</span> | 
+            Y-Axis: <span className="font-medium">{selectedColumns.y}</span> | 
+            {selectedColumns.z && (chartConfig.type === '3d-scatter' || chartConfig.type === '3d-surface') && (
+              <>Z-Axis: <span className="font-medium">{selectedColumns.z}</span> | </>
+            )}
+            Total records: <span className="font-medium">{fileData.totalRows || 0}</span>
+            {(chartConfig.type === '3d-scatter' || chartConfig.type === '3d-surface') && (
+              <span className="ml-2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">3D Chart</span>
+            )}
+          </p>
+        </div>
+      )}
     </div>
   );
 };

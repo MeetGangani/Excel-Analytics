@@ -8,6 +8,7 @@ import FileSelector from '../components/FileSelector';
 import QuickAnalyze from '../components/QuickAnalyze';
 import ChartVisualization from '../components/ChartVisualization';
 import ChartSelector from '../components/ChartSelector';
+import AnalysisHistory from '../components/AnalysisHistory';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -306,7 +307,10 @@ const Dashboard = () => {
             <Route path="files/quickanalyze" element={<QuickAnalyze />} />
             <Route path="files/visualize" element={
               <div>
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Create Visualizations</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-800">Create Visualizations</h2>
+                  <AnalysisHistory />
+                </div>
                 <div className="grid md:grid-cols-3 gap-6">
                   <div className="md:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     <ChartSelector />
@@ -319,7 +323,10 @@ const Dashboard = () => {
             } />
             <Route path="files/visualize/:fileId" element={
               <div>
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Visualize File Data</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-800">Visualize File Data</h2>
+                  <AnalysisHistory />
+                </div>
                 <div className="grid md:grid-cols-3 gap-6">
                   <div className="md:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     <ChartSelector />
