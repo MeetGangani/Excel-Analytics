@@ -4,6 +4,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { getFiles, deleteFile, reset } from '../redux/slices/fileSlice';
 import FileUpload from '../components/FileUpload';
 import FileAnalysis from '../components/FileAnalysis';
+import FileSelector from '../components/FileSelector';
+import QuickAnalyze from '../components/QuickAnalyze';
 import ChartVisualization from '../components/ChartVisualization';
 import ChartSelector from '../components/ChartSelector';
 import { motion } from 'framer-motion';
@@ -366,7 +368,7 @@ const Dashboard = () => {
               <Link
                 to="/dashboard/files/analyze"
                 className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-left text-sm transition-colors ${
-                  location.pathname.includes('/dashboard/files/analyze')
+                  location.pathname === '/dashboard/files/analyze'
                     ? 'bg-blue-50 text-blue-600 font-medium' 
                     : 'hover:bg-gray-50 text-gray-700'
                 }`}
@@ -375,7 +377,24 @@ const Dashboard = () => {
                   <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
-                  <span>Analyze Data</span>
+                  <span>Analyze Files</span>
+                </div>
+              </Link>
+              
+              {/* Quick Analysis */}
+              <Link
+                to="/dashboard/files/quickanalyze"
+                className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-left text-sm transition-colors ${
+                  location.pathname === '/dashboard/files/quickanalyze'
+                    ? 'bg-blue-50 text-blue-600 font-medium' 
+                    : 'hover:bg-gray-50 text-gray-700'
+                }`}
+              >
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <span>Quick Analysis</span>
                 </div>
               </Link>
               
@@ -441,12 +460,8 @@ const Dashboard = () => {
           <Routes>
                          <Route path="/" element={<DashboardHome />} />
              <Route path="files/upload" element={<FileUpload />} />
-             <Route path="files/analyze" element={
-               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                 <h2 className="text-lg font-semibold text-gray-800 mb-4">Analyze Your Excel Files</h2>
-                 <FileList />
-               </div>
-             } />
+                           <Route path="files/analyze" element={<FileSelector />} />
+              <Route path="files/quickanalyze" element={<QuickAnalyze />} />
              <Route path="files/visualize" element={
                <div>
                  <h2 className="text-lg font-semibold text-gray-800 mb-4">Create Visualizations</h2>

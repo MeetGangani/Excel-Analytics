@@ -95,7 +95,8 @@ export const analyzeFile = createAsyncThunk(
         data,
         config
       );
-      return { fileId, analysis: response.data };
+      // Extract the analysis data from the response
+      return response.data.analysis;
     } catch (error) {
       const message = 
         error.response?.data?.message ||
@@ -124,7 +125,7 @@ export const analyzeUploadedFile = createAsyncThunk(
         formData,
         config
       );
-      return response.data;
+      return response.data.analysis;
     } catch (error) {
       const message = 
         error.response?.data?.message ||
@@ -158,6 +159,12 @@ const fileSlice = createSlice({
       state.isError = false;
       state.message = '';
       state.uploadSuccess = false;
+    },
+    resetAnalysis: (state) => {
+      state.currentAnalysis = null;
+      state.isAnalyzing = false;
+      state.isError = false;
+      state.message = '';
     },
   },
   extraReducers: (builder) => {
@@ -214,7 +221,7 @@ const fileSlice = createSlice({
       .addCase(analyzeFile.fulfilled, (state, action) => {
         state.isAnalyzing = false;
         state.isSuccess = true;
-        state.currentAnalysis = action.payload.analysis;
+        state.currentAnalysis = action.payload;
       })
       .addCase(analyzeFile.rejected, (state, action) => {
         state.isAnalyzing = false;
@@ -238,5 +245,5 @@ const fileSlice = createSlice({
   },
 });
 
-export const { reset } = fileSlice.actions;
+export const { reset, resetAnalysis } = fileSlice.actions;
 export default fileSlice.reducer; 

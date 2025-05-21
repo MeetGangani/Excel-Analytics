@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { analyzeFile } from '../redux/slices/fileSlice';
+import { analyzeFile, resetAnalysis } from '../redux/slices/fileSlice';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -11,6 +11,23 @@ const FileAnalysis = ({ fileId, fileName, onClose }) => {
   
   const dispatch = useDispatch();
   const { isAnalyzing, currentAnalysis, isError, message } = useSelector(state => state.files);
+  
+  // Reset analysis state when component mounts
+  useEffect(() => {
+    dispatch(resetAnalysis());
+  }, [dispatch]);
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('FileAnalysis component state:', {
+      fileId,
+      fileName,
+      isAnalyzing,
+      currentAnalysis: currentAnalysis ? 'present' : 'null',
+      isError,
+      message
+    });
+  }, [fileId, fileName, isAnalyzing, currentAnalysis, isError, message]);
 
   // Predefined prompts for quick selection
   const predefinedPrompts = [
@@ -25,6 +42,7 @@ const FileAnalysis = ({ fileId, fileName, onClose }) => {
   useEffect(() => {
     if (isError && message) {
       toast.error(message);
+      console.error('Analysis error:', message);
     }
   }, [isError, message]);
   
@@ -34,11 +52,28 @@ const FileAnalysis = ({ fileId, fileName, onClose }) => {
       return;
     }
     
+    // Reset previous analysis state before starting new analysis
+    dispatch(resetAnalysis());
+    
+    console.log('Initiating file analysis:', { fileId, analysisType, prompt });
+    toast.loading('Analyzing your file...', { id: 'analysis' });
+    
     dispatch(analyzeFile({ 
       fileId, 
       customPrompt: prompt, 
       analysisType 
-    }));
+    }))
+      .unwrap()
+      .then((result) => {
+        console.log('Analysis completed successfully:', result);
+        toast.dismiss('analysis');
+        toast.success('Analysis completed successfully');
+      })
+      .catch((error) => {
+        console.error('Analysis failed:', error);
+        toast.dismiss('analysis');
+        toast.error('Analysis failed: ' + (error?.message || 'Unknown error'));
+      });
   };
   
   const handlePredefinedPrompt = (selectedPrompt) => {

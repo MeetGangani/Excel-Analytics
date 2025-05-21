@@ -12,8 +12,25 @@ const {
 const { protect } = require('../middleware/auth');
 const multer = require('multer');
 
-// Configure multer for memory storage
-const upload = multer({ storage: multer.memoryStorage() });
+// Configure multer for memory storage with proper limits
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB max file size
+  },
+  fileFilter: (req, file, callback) => {
+    // Accept excel files only
+    if (
+      file.mimetype.includes('excel') || 
+      file.originalname.endsWith('.xlsx') || 
+      file.originalname.endsWith('.xls')
+    ) {
+      callback(null, true);
+    } else {
+      callback(new Error('Only Excel files are allowed'));
+    }
+  }
+});
 
 const router = express.Router();
 

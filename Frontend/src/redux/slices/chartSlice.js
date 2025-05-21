@@ -4,8 +4,8 @@ import axios from 'axios';
 const API_URL = 'http://localhost:5000/api/files';
 
 // Get file data for visualization
-export const getFileData = createAsyncThunk(
-  'charts/getFileData',
+export const fetchFileData = createAsyncThunk(
+  'charts/fetchFileData',
   async (fileId, thunkAPI) => {
     try {
       const token = thunkAPI.getState().auth.user.token;
@@ -30,6 +30,7 @@ export const getFileData = createAsyncThunk(
 // Initial state
 const initialState = {
   fileData: null,
+  selectedFileId: '',
   chartConfig: {
     type: 'bar',
     datasetLabel: '',
@@ -87,6 +88,9 @@ const chartSlice = createSlice({
     setDatasetLabel: (state, action) => {
       state.chartConfig.datasetLabel = action.payload;
     },
+    setSelectedFile: (state, action) => {
+      state.selectedFileId = action.payload;
+    },
     generateChartData: (state) => {
       if (!state.fileData || !state.selectedColumns.x || !state.selectedColumns.y) {
         return;
@@ -116,10 +120,10 @@ const chartSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // Get file data
-      .addCase(getFileData.pending, (state) => {
+      .addCase(fetchFileData.pending, (state) => {
         state.isLoading = true;
       })
-      .addCase(getFileData.fulfilled, (state, action) => {
+      .addCase(fetchFileData.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
         state.fileData = action.payload;
@@ -131,7 +135,7 @@ const chartSlice = createSlice({
           y: state.availableColumns[1] || '',
         };
       })
-      .addCase(getFileData.rejected, (state, action) => {
+      .addCase(fetchFileData.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;
@@ -144,7 +148,8 @@ export const {
   setChartType, 
   setSelectedColumns, 
   setChartTitle, 
-  setDatasetLabel, 
+  setDatasetLabel,
+  setSelectedFile,
   generateChartData 
 } = chartSlice.actions;
 export default chartSlice.reducer;

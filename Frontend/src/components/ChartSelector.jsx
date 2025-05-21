@@ -1,22 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   setChartType, 
   setSelectedColumns, 
   setChartTitle, 
   setDatasetLabel,
-  generateChartData 
+  generateChartData,
+  setSelectedFile,
+  fetchFileData
 } from '../redux/slices/chartSlice';
+import { getFiles } from '../redux/slices/fileSlice';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 const ChartSelector = () => {
   const dispatch = useDispatch();
-  const { availableColumns, selectedColumns, chartConfig } = useSelector(state => state.charts);
+  const { availableColumns, selectedColumns, chartConfig, selectedFileId, isLoading } = useSelector(state => state.charts);
+  const { files } = useSelector(state => state.files);
   
   const [chartOptions, setChartOptions] = useState({
     title: chartConfig.title,
     datasetLabel: chartConfig.datasetLabel,
   });
+  
+  // Fetch all available files when component mounts
+  useEffect(() => {
+    dispatch(getFiles());
+  }, [dispatch]);
   
   // Available chart types
   const chartTypes = [
@@ -34,6 +44,24 @@ const ChartSelector = () => {
       dispatch(generateChartData());
     }
   }, [selectedColumns, dispatch]);
+  
+  // Memoized selected file for performance
+  const selectedFile = useMemo(() => {
+    return files.find(file => file.id === selectedFileId);
+  }, [files, selectedFileId]);
+
+  // Handle file selection
+  const handleFileSelect = (fileId) => {
+    if (fileId) {
+      dispatch(setSelectedFile(fileId));
+      dispatch(fetchFileData(fileId));
+      
+      // Reset column selections when file changes
+      dispatch(setSelectedColumns({ x: '', y: '' }));
+      
+      toast.success('Loading file data for visualization...');
+    }
+  };
 
   // Handle chart type selection
   const handleChartTypeSelect = (type) => {
@@ -63,6 +91,8 @@ const ChartSelector = () => {
     dispatch(setChartTitle(chartOptions.title));
     dispatch(setDatasetLabel(chartOptions.datasetLabel));
     dispatch(generateChartData());
+    
+    toast.success('Chart options updated');
   };
   
   // Icon components for chart types
@@ -117,6 +147,41 @@ const ChartSelector = () => {
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
       <h2 className="text-lg font-semibold text-gray-900 mb-6">Visualization Configuration</h2>
       
+      {/* File Selection */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Select File to Visualize
+        </label>
+        <div className="relative">
+          <select
+            value={selectedFileId || ''}
+            onChange={(e) => handleFileSelect(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-blue-500 appearance-none"
+            disabled={isLoading}
+          >
+            <option value="">Select a file</option>
+            {files.map((file) => (
+              <option key={file.id} value={file.id}>{file.filename}</option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+        {files.length === 0 && (
+          <p className="mt-2 text-sm text-amber-600">
+            No files available. Please upload Excel files first.
+          </p>
+        )}
+        {selectedFile && (
+          <p className="mt-2 text-sm text-green-600">
+            Selected: {selectedFile.filename}
+          </p>
+        )}
+      </div>
+      
       {/* Chart Type Selection */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -134,6 +199,7 @@ const ChartSelector = () => {
                   ? 'bg-blue-50 border-2 border-blue-500 text-blue-700'
                   : 'bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100'
               }`}
+              disabled={!selectedFileId || isLoading}
             >
               <ChartIcon type={type.icon} />
               <span className="mt-2 text-sm">{type.name}</span>
@@ -147,39 +213,61 @@ const ChartSelector = () => {
         <h3 className="text-md font-medium text-gray-700 mb-3">
           Data Mapping
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-2">
-              X-Axis (Labels)
-            </label>
-            <select
-              value={selectedColumns.x}
-              onChange={(e) => handleColumnSelect('x', e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-blue-500"
-            >
-              <option value="">Select column</option>
-              {availableColumns.map((column) => (
-                <option key={`x-${column}`} value={column}>{column}</option>
-              ))}
-            </select>
+        
+        {isLoading ? (
+          <div className="flex items-center justify-center h-20">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+            <span className="ml-2 text-sm text-gray-500">Loading data...</span>
           </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-2">
-              Y-Axis (Values)
-            </label>
-            <select
-              value={selectedColumns.y}
-              onChange={(e) => handleColumnSelect('y', e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-blue-500"
-            >
-              <option value="">Select column</option>
-              {availableColumns.map((column) => (
-                <option key={`y-${column}`} value={column}>{column}</option>
-              ))}
-            </select>
-          </div>
-        </div>
+        ) : (
+          <>
+            {!selectedFileId ? (
+              <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm">
+                Please select a file to map data for visualization.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">
+                    X-Axis (Labels)
+                  </label>
+                  <select
+                    value={selectedColumns.x}
+                    onChange={(e) => handleColumnSelect('x', e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-blue-500"
+                  >
+                    <option value="">Select column</option>
+                    {availableColumns.map((column) => (
+                      <option key={`x-${column}`} value={column}>{column}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">
+                    Y-Axis (Values)
+                  </label>
+                  <select
+                    value={selectedColumns.y}
+                    onChange={(e) => handleColumnSelect('y', e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-blue-500"
+                  >
+                    <option value="">Select column</option>
+                    {availableColumns.map((column) => (
+                      <option key={`y-${column}`} value={column}>{column}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+        
+        {availableColumns.length === 0 && selectedFileId && !isLoading && (
+          <p className="mt-2 text-sm text-red-600">
+            No data columns available. The selected file may be empty or have an unsupported format.
+          </p>
+        )}
       </div>
       
       {/* Chart Options */}
@@ -199,6 +287,7 @@ const ChartSelector = () => {
               onChange={handleChartOptionChange}
               placeholder="Enter chart title"
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-blue-500"
+              disabled={!selectedFileId || isLoading}
             />
           </div>
           
@@ -213,6 +302,7 @@ const ChartSelector = () => {
               onChange={handleChartOptionChange}
               placeholder="Enter dataset label"
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-blue-500"
+              disabled={!selectedFileId || isLoading}
             />
           </div>
         </div>
@@ -221,9 +311,14 @@ const ChartSelector = () => {
       {/* Apply Button */}
       <button
         onClick={applyChartOptions}
-        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2.5 px-4 rounded-lg transition-colors shadow-sm"
+        disabled={!selectedFileId || isLoading || (!selectedColumns.x && !selectedColumns.y)}
+        className={`w-full py-2.5 px-4 rounded-lg transition-colors shadow-sm font-medium ${
+          !selectedFileId || isLoading || (!selectedColumns.x && !selectedColumns.y)
+            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            : 'bg-blue-500 hover:bg-blue-600 text-white'
+        }`}
       >
-        Apply Changes
+        {isLoading ? 'Loading...' : 'Apply Changes'}
       </button>
     </div>
   );

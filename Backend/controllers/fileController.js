@@ -1013,16 +1013,22 @@ function checkDataQuality(sheetData) {
  */
 exports.analyzeUploadedFile = async (req, res) => {
   try {
+    console.log('[INFO] Received file analysis request');
+    
     // Check if file was uploaded
     if (!req.file) {
+      console.error('[ERROR] No file uploaded in request');
       return res.status(400).json({ 
         success: false,
         message: 'No file uploaded' 
       });
     }
 
+    console.log(`[INFO] File received: ${req.file.originalname}, size: ${req.file.size} bytes`);
+
     // Check if xlsx is available
     if (!xlsx) {
+      console.error('[ERROR] XLSX library not available');
       return res.status(500).json({
         success: false,
         message: 'Excel processing library not available'
@@ -1030,12 +1036,15 @@ exports.analyzeUploadedFile = async (req, res) => {
     }
 
     const { analysisType = 'comprehensive', customPrompt = '' } = req.body;
+    console.log(`[INFO] Analysis type: ${analysisType}, Custom prompt: ${customPrompt}`);
+
     const file = req.file;
 
     // Validate Excel format
     if (!file.mimetype.includes('excel') && 
         !file.originalname.endsWith('.xlsx') && 
         !file.originalname.endsWith('.xls')) {
+      console.error(`[ERROR] Invalid file format: ${file.mimetype}`);
       return res.status(400).json({
         success: false,
         message: 'Only Excel files are supported'
@@ -1156,12 +1165,13 @@ exports.analyzeUploadedFile = async (req, res) => {
         // Always prioritize custom prompts
         if (customPrompt && customPrompt.trim()) {
           // User provided a custom prompt - use it with data context
-          prompt = `I'm analyzing an Excel file named "${file.originalname}". 
+          prompt = `I'm analyzing the Excel data you've provided from the file "${file.originalname}". 
+I already have access to this data - I don't need you to access any files on your end.
 The file contains ${Object.keys(extractedData).length} sheets with a total of ${totalRows} rows.
 
 Your task: ${customPrompt.trim()}
 
-Here's a summary of each sheet:
+Here's a summary of the data I have access to for each sheet:
 `;
           
           // Reduce data volume with abstracted sheet summaries
@@ -1191,16 +1201,17 @@ Sample data (first 3 rows):
           }
           
           // Make it crystal clear that we want a direct answer to the custom prompt
-          prompt += `\n\nPlease DIRECTLY answer: ${customPrompt.trim()}
-Do not include general analysis unless requested.
+          prompt += `\n\nI already have access to all the data from this file. Please DIRECTLY answer: ${customPrompt.trim()}
+Do not ask for me to provide the file - I've already parsed it and given you the relevant data above.
 Respond in a way that directly addresses the specific request.`;
         } 
         else {
           // Use the default comprehensive prompt
-          prompt = `Please analyze this Excel file: ${file.originalname}
-              
-File contains ${Object.keys(extractedData).length} sheets with a total of ${totalRows} rows.
-              
+          prompt = `Please analyze this Excel data from the file: ${file.originalname}
+
+I already have access to this data - I've parsed the file for you.
+The file contains ${Object.keys(extractedData).length} sheets with a total of ${totalRows} rows.
+      
 Here's a summary of each sheet:
 `;
           
@@ -1211,7 +1222,7 @@ Sheet: ${sheetName}
 - Rows: ${data.rows}
 - Columns: ${data.columns}
 - Headers: ${data.headers.slice(0, 5).join(', ')}${data.headers.length > 5 ? '... (truncated)' : ''}
-            
+    
 `;
             // Only add a few sample rows to reduce token count
             if (data.sample && data.sample.length > 1) {
@@ -1229,13 +1240,13 @@ Sheet: ${sheetName}
           }
           
           prompt += `
-Based on this data, please provide:
+Based on this data (which I already have full access to), please provide:
 1. A comprehensive summary of what this Excel file contains
 2. Key insights from the data (patterns, trends, anomalies)
 3. Specific recommendations based on the data
 4. Any data quality issues or improvements that could be made
 
-If there's not enough information to provide a complete analysis, focus on what you can discern from the available data.
+Do not ask me to provide the file - I've already parsed it and given you the data above.
 `;
         }
         
@@ -1328,6 +1339,10 @@ If there's not enough information to provide a complete analysis, focus on what 
       }
     }
 
+    // At the end, before sending the response:
+    console.log('[INFO] Analysis completed successfully');
+    console.log('[DEBUG] Analysis result:', JSON.stringify(analysisResult || {}).substring(0, 200) + '...');
+    
     // If we have a result from Gemini, return it
     if (analysisResult) {
       return res.status(200).json({
@@ -1387,10 +1402,10 @@ If there's not enough information to provide a complete analysis, focus on what 
       });
     }
   } catch (error) {
-    console.error('File upload analysis error:', error);
+    console.error('[ERROR] File analysis error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error analyzing uploaded file',
+      message: 'Error analyzing file',
       error: error.message
     });
   }
