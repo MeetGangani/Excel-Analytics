@@ -56,7 +56,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-white">
+    <div className="min-h-screen flex items-center justify-center p-4 pt-16 relative overflow-hidden bg-white">
       {/* Main content */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
