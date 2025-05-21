@@ -46,6 +46,32 @@ export const logout = createAsyncThunk('auth/logout', async () => {
   localStorage.removeItem('user');
 });
 
+// Reset password
+export const resetPassword = createAsyncThunk(
+  'auth/resetPassword',
+  async ({ resettoken, password }, thunkAPI) => {
+    try {
+      const response = await axios.put(`${API_URL}/resetpassword/${resettoken}`, { password });
+      return response.data;
+    } catch (error) {
+      const message = error.response?.data?.message || error.message;
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+// Update profile
+export const updateProfile = createAsyncThunk(
+  'auth/updateProfile',
+  async (updatedUserData, thunkAPI) => {
+    try {
+      return updatedUserData; // This is coming directly from the component
+    } catch (error) {
+      return thunkAPI.rejectWithValue('Failed to update profile');
+    }
+  }
+);
+
 const initialState = {
   user: user,
   isLoading: false,
@@ -110,6 +136,25 @@ const authSlice = createSlice({
       // Logout
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
+      })
+      // Reset Password
+      .addCase(resetPassword.pending, (state) => {
+        state.isLoading = true;
+        state.isSuccess = false;
+        state.isError = false;
+      })
+      .addCase(resetPassword.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+      })
+      .addCase(resetPassword.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+      // Update profile
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.user = action.payload;
       });
   },
 });

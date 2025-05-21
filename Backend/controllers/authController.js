@@ -148,6 +148,57 @@ exports.getMe = async (req, res) => {
 };
 
 /**
+ * @desc    Update user profile (name only - email updates not allowed)
+ * @route   PUT /api/auth/updateprofile
+ * @access  Private
+ */
+exports.updateProfile = async (req, res) => {
+  try {
+    // Get current user
+    const user = await User.findById(req.user._id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Update name if provided
+    const { name } = req.body;
+    
+    if (!name || name.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Name cannot be empty'
+      });
+    }
+    
+    // Update user
+    user.name = name;
+    await user.save();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update profile',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
  * @desc    Logout user / clear cookie
  * @route   POST /api/auth/logout
  * @access  Private
@@ -184,9 +235,9 @@ exports.forgotPassword = async (req, res) => {
     await user.save({ validateBeforeSave: false });
 
     // Create reset URL - This should point to your frontend reset page
-    // For frontend URL format, assuming your frontend will have a route like /reset-password/[token]
+    // For frontend URL format, assuming your frontend will have a route like /resetpassword/[token]
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
+    const resetUrl = `${frontendUrl}/resetpassword/${resetToken}`;
 
     // Create message
     const message = `
@@ -355,6 +406,95 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to reset password. Please try again.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * @desc    Update user password
+ * @route   PUT /api/auth/updatepassword
+ * @access  Private
+ */
+exports.updatePassword = async (req, res) => {
+  try {
+    // Get current user
+    const user = await User.findById(req.user._id).select('+password');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Check if current password is correct
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide current password and new password'
+      });
+    }
+    
+    // Verify current password
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+    
+    // Validate new password
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long'
+      });
+    }
+    
+    // Update password
+    user.password = newPassword;
+    await user.save();
+    
+    // Send confirmation email
+    try {
+      const message = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 5px;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h1 style="color: #4F46E5;">Password Updated Successfully</h1>
+          </div>
+          <p>Hello ${escapeHtml(user.name)},</p>
+          <p>Your password has been successfully updated.</p>
+          <p>If you did not make this change, please contact support immediately.</p>
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e1e1e1; text-align: center; color: #6B7280; font-size: 12px;">
+            <p>Excel Analytics Platform</p>
+          </div>
+        </div>
+      `;
+
+      await sendEmail({
+        email: user.email,
+        subject: 'Your Password Has Been Updated - Excel Analytics Platform',
+        message
+      });
+    } catch (err) {
+      // Just log the error but don't stop the process
+      console.error('Error sending confirmation email:', err);
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Password updated successfully'
+    });
+    
+  } catch (error) {
+    console.error('Update password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update password',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

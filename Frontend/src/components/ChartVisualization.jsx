@@ -46,16 +46,34 @@ const ChartVisualization = ({ onChartCreated }) => {
   const [showExportOptions, setShowExportOptions] = useState(false);
   const [showDataExportOptions, setShowDataExportOptions] = useState(false);
   const { chartConfig, fileData, selectedColumns, selectedFileId } = useSelector(state => state.charts);
+  const { user } = useSelector(state => state.auth);
   const [chartRendered, setChartRendered] = useState(false);
   
   // Check if we have data to display
   const hasData = chartConfig.datasets.length > 0 && chartConfig.labels.length > 0;
 
+  // Increment visualization count in localStorage directly
+  const incrementLocalVisualizationCount = () => {
+    const userId = user?.user?._id || user?._id;
+    if (userId) {
+      const currentCount = localStorage.getItem(`visualizationCount_${userId}`);
+      const newCount = (currentCount ? parseInt(currentCount) : 0) + 1;
+      localStorage.setItem(`visualizationCount_${userId}`, newCount.toString());
+    }
+  };
+
   // Call onChartCreated callback when a chart is successfully rendered for the first time
   useEffect(() => {
-    if (hasData && !chartRendered && onChartCreated) {
+    if (hasData && !chartRendered) {
       setChartRendered(true);
-      onChartCreated();
+      
+      // Increment visualization count in localStorage
+      incrementLocalVisualizationCount();
+      
+      // Call parent callback if provided
+      if (onChartCreated) {
+        onChartCreated();
+      }
     }
   }, [hasData, chartRendered, onChartCreated]);
   

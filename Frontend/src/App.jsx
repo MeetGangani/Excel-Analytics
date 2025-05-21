@@ -4,6 +4,8 @@ import { useSelector } from 'react-redux';
 import Header from './components/Header';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import AdminPanel from './pages/AdminPanel';
 import ToastProvider from './components/ToastProvider';
@@ -26,7 +28,11 @@ const ProtectedAdminRoute = ({ children }) => {
 
 const AppContent = () => {
   const location = useLocation();
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/';
+  const isAuthPage = location.pathname === '/login' || 
+                     location.pathname === '/register' || 
+                     location.pathname === '/' ||
+                     location.pathname === '/forgotpassword' ||
+                     location.pathname.includes('/resetpassword');
 
   return (
     <div className="flex flex-col min-h-screen bg-app">
@@ -50,6 +56,8 @@ const AppContent = () => {
               <Route path="/" element={<Login />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/forgotpassword" element={<ForgotPassword />} />
+              <Route path="/resetpassword/:resettoken" element={<ResetPassword />} />
               <Route path="/dashboard/*" element={<Dashboard />} />
               <Route path="/admin/*" element={
                 <ProtectedAdminRoute>

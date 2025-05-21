@@ -33,12 +33,15 @@ const Dashboard = () => {
     } else {
       dispatch(getFiles());
       
-      // Load analytics counts from localStorage or API
-      const storedAnalyzeCount = localStorage.getItem('analyzeCount');
-      const storedVisualizationCount = localStorage.getItem('visualizationCount');
-      
-      setAnalyzeCount(storedAnalyzeCount ? parseInt(storedAnalyzeCount) : 0);
-      setVisualizationCount(storedVisualizationCount ? parseInt(storedVisualizationCount) : 0);
+      // Load analytics counts from localStorage with user-specific keys
+      const userId = user?.user?._id || user?._id;
+      if (userId) {
+        const storedAnalyzeCount = localStorage.getItem(`analyzeCount_${userId}`);
+        const storedVisualizationCount = localStorage.getItem(`visualizationCount_${userId}`);
+        
+        setAnalyzeCount(storedAnalyzeCount ? parseInt(storedAnalyzeCount) : 0);
+        setVisualizationCount(storedVisualizationCount ? parseInt(storedVisualizationCount) : 0);
+      }
     }
 
     return () => {
@@ -63,17 +66,27 @@ const Dashboard = () => {
   const handleAnalyzeFile = (file) => {
     setFileToAnalyze(file);
     
-    // Increment analyze count
+    // Increment analyze count with user-specific storage
     const newCount = analyzeCount + 1;
     setAnalyzeCount(newCount);
-    localStorage.setItem('analyzeCount', newCount.toString());
+    
+    // Store with user-specific key
+    const userId = user?.user?._id || user?._id;
+    if (userId) {
+      localStorage.setItem(`analyzeCount_${userId}`, newCount.toString());
+    }
   };
   
   // Function to increment visualization count (can be called from child components)
   const incrementVisualizationCount = () => {
     const newCount = visualizationCount + 1;
     setVisualizationCount(newCount);
-    localStorage.setItem('visualizationCount', newCount.toString());
+    
+    // Store with user-specific key
+    const userId = user?.user?._id || user?._id;
+    if (userId) {
+      localStorage.setItem(`visualizationCount_${userId}`, newCount.toString());
+    }
   };
 
   const formatDate = (dateString) => {

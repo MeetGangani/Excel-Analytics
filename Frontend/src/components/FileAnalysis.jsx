@@ -11,6 +11,7 @@ const FileAnalysis = ({ fileId, fileName, onClose }) => {
   
   const dispatch = useDispatch();
   const { isAnalyzing, currentAnalysis, isError, message } = useSelector(state => state.files);
+  const { user } = useSelector(state => state.auth);
   
   // Reset analysis state when component mounts
   useEffect(() => {
@@ -45,6 +46,19 @@ const FileAnalysis = ({ fileId, fileName, onClose }) => {
       console.error('Analysis error:', message);
     }
   }, [isError, message]);
+  
+  // Handle successful analysis completion and update counter
+  useEffect(() => {
+    if (currentAnalysis && !isAnalyzing && !isError) {
+      // Increment analyze count in localStorage with user-specific key
+      const userId = user?.user?._id || user?._id;
+      if (userId) {
+        const currentCount = localStorage.getItem(`analyzeCount_${userId}`);
+        const newCount = (currentCount ? parseInt(currentCount) : 0) + 1;
+        localStorage.setItem(`analyzeCount_${userId}`, newCount.toString());
+      }
+    }
+  }, [currentAnalysis, isAnalyzing, isError, user]);
   
   const handleAnalyze = () => {
     if (!prompt.trim() && analysisType === 'custom') {
