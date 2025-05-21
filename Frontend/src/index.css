@@ -287,3 +287,17 @@ body {
 .checkbox-custom.checked::after {
   transform: translate(-50%, -70%) rotate(-45deg) scale(1);
 }
+
+/* Animated underline for header navigation */
+@keyframes expandWidth {
+  0% {
+    width: 0;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  100% {
+    width: 100%;
+    left: 0;
+    transform: translateX(0);
+  }
+}

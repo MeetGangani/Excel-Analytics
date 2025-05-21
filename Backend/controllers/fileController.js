@@ -64,16 +64,16 @@ try {
       console.log('Gemini AI initialized successfully with gemini-1.5-flash model');
     } catch (modelError) {
       console.log('Failed to initialize gemini-1.5-flash model:', modelError.message);
-      try {
+    try {
         // Fallback to basic model for free tier
-        model = genAI.getGenerativeModel({ model: "gemini" });
-        console.log('Gemini AI initialized successfully with basic gemini model');
+      model = genAI.getGenerativeModel({ model: "gemini" });
+      console.log('Gemini AI initialized successfully with basic gemini model');
       } catch (alternativeError) {
         console.log('Failed to initialize basic gemini model:', alternativeError.message);
-        try {
-          // Fallback to gemini-1.0-base
-          model = genAI.getGenerativeModel({ model: "gemini-1.0-base" });
-          console.log('Gemini AI initialized successfully with gemini-1.0-base model');
+      try {
+        // Fallback to gemini-1.0-base
+        model = genAI.getGenerativeModel({ model: "gemini-1.0-base" });
+        console.log('Gemini AI initialized successfully with gemini-1.0-base model');
         } catch (finalError) {
           console.log('All Gemini models failed to initialize:', finalError.message);
         }
@@ -1208,10 +1208,10 @@ Respond in a way that directly addresses the specific request.`;
         else {
           // Use the default comprehensive prompt
           prompt = `Please analyze this Excel data from the file: ${file.originalname}
-
+              
 I already have access to this data - I've parsed the file for you.
 The file contains ${Object.keys(extractedData).length} sheets with a total of ${totalRows} rows.
-      
+              
 Here's a summary of each sheet:
 `;
           
@@ -1222,7 +1222,7 @@ Sheet: ${sheetName}
 - Rows: ${data.rows}
 - Columns: ${data.columns}
 - Headers: ${data.headers.slice(0, 5).join(', ')}${data.headers.length > 5 ? '... (truncated)' : ''}
-    
+            
 `;
             // Only add a few sample rows to reduce token count
             if (data.sample && data.sample.length > 1) {
@@ -1342,7 +1342,7 @@ Do not ask me to provide the file - I've already parsed it and given you the dat
     // At the end, before sending the response:
     console.log('[INFO] Analysis completed successfully');
     console.log('[DEBUG] Analysis result:', JSON.stringify(analysisResult || {}).substring(0, 200) + '...');
-    
+
     // If we have a result from Gemini, return it
     if (analysisResult) {
       return res.status(200).json({

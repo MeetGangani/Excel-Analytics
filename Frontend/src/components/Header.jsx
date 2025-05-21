@@ -240,14 +240,23 @@ const Header = () => {
                     <Link
                       key={item.to + item.text}
                       to={item.to}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center relative ${
                         isActive(item.to)
-                          ? (isScrolled ? 'bg-primary-main bg-opacity-90 text-white font-bold' : 'bg-white bg-opacity-20 text-white')
-                          : (isScrolled ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-white hover:bg-opacity-10 text-white')
+                          ? (isScrolled ? 'text-primary-main font-bold' : 'text-white font-bold')
+                          : (isScrolled ? 'hover:text-primary-main text-gray-700' : 'hover:text-white text-white opacity-80')
                       }`}
                     >
                       <span className="mr-1.5">{item.icon}</span>
                       <span>{item.text}</span>
+                      {isActive(item.to) && (
+                        <span 
+                          className={`absolute -bottom-1 left-0 h-0.5 ${isScrolled ? 'bg-primary-main' : 'bg-white'}`} 
+                          style={{ 
+                            animation: 'expandWidth 0.3s ease forwards',
+                            width: '0%'
+                          }}
+                        ></span>
+                      )}
                     </Link>
                   ))}
                 </div>
@@ -424,10 +433,10 @@ const Header = () => {
                       <Link 
                         key={item.to + item.text}
                         to={item.to}
-                        className={`block px-3 py-2 rounded-md text-base font-medium ${
+                        className={`block px-3 py-2 rounded-md text-base font-medium relative ${
                           isActive(item.to)
-                            ? 'bg-blue-50 text-blue-700'
-                            : 'text-gray-700 hover:bg-gray-100'
+                            ? 'text-primary-main font-bold'
+                            : 'text-gray-700 hover:text-primary-main'
                         }`}
                         onClick={() => setMobileMenuOpen(false)}
                       >
@@ -435,6 +444,15 @@ const Header = () => {
                           {item.icon}
                           <span className="ml-2">{item.text}</span>
                         </div>
+                        {isActive(item.to) && (
+                          <span 
+                            className={`absolute bottom-0 left-0 h-0.5 bg-primary-main`} 
+                            style={{ 
+                              animation: 'expandWidth 0.3s ease forwards',
+                              width: '0%'
+                            }}
+                          ></span>
+                        )}
                       </Link>
                     ))}
                     
