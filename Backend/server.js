@@ -22,10 +22,12 @@ connectDB();
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const fileRoutes = require('./routes/fileRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 // Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/ai/analyze', fileRoutes);
 
 // Basic route for testing

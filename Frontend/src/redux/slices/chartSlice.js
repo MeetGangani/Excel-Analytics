@@ -38,20 +38,32 @@ const initialState = {
     labels: [],
     datasets: [],
     backgroundColor: [
-      'rgba(37, 99, 235, 0.5)',  // blue-600
-      'rgba(29, 78, 216, 0.5)',  // blue-700
-      'rgba(30, 64, 175, 0.5)',  // blue-800
-      'rgba(59, 130, 246, 0.5)', // blue-500
-      'rgba(96, 165, 250, 0.5)', // blue-400
-      'rgba(147, 197, 253, 0.5)' // blue-300
+      'rgba(59, 130, 246, 0.7)',   // blue-500
+      'rgba(16, 185, 129, 0.7)',   // emerald-500
+      'rgba(239, 68, 68, 0.7)',    // red-500
+      'rgba(245, 158, 11, 0.7)',   // amber-500
+      'rgba(139, 92, 246, 0.7)',   // purple-500
+      'rgba(236, 72, 153, 0.7)',   // pink-500
+      'rgba(20, 184, 166, 0.7)',   // teal-500
+      'rgba(249, 115, 22, 0.7)',   // orange-500
+      'rgba(79, 70, 229, 0.7)',    // indigo-500
+      'rgba(6, 182, 212, 0.7)',    // cyan-500
+      'rgba(132, 204, 22, 0.7)',   // lime-500
+      'rgba(217, 70, 239, 0.7)',   // fuchsia-500
     ],
     borderColor: [
-      'rgba(37, 99, 235, 1)',   // blue-600
-      'rgba(29, 78, 216, 1)',   // blue-700
-      'rgba(30, 64, 175, 1)',   // blue-800
-      'rgba(59, 130, 246, 1)',  // blue-500
-      'rgba(96, 165, 250, 1)',  // blue-400
-      'rgba(147, 197, 253, 1)'  // blue-300
+      'rgba(59, 130, 246, 1)',    // blue-500
+      'rgba(16, 185, 129, 1)',    // emerald-500
+      'rgba(239, 68, 68, 1)',     // red-500
+      'rgba(245, 158, 11, 1)',    // amber-500
+      'rgba(139, 92, 246, 1)',    // purple-500
+      'rgba(236, 72, 153, 1)',    // pink-500
+      'rgba(20, 184, 166, 1)',    // teal-500
+      'rgba(249, 115, 22, 1)',    // orange-500
+      'rgba(79, 70, 229, 1)',     // indigo-500
+      'rgba(6, 182, 212, 1)',     // cyan-500
+      'rgba(132, 204, 22, 1)',    // lime-500
+      'rgba(217, 70, 239, 1)',    // fuchsia-500
     ],
   },
   selectedColumns: {
@@ -128,16 +140,33 @@ const chartSlice = createSlice({
       // Extract dataset (y-axis data)
       const values = data.map(item => parseFloat(item[y]) || 0);
       
-      // Create the first dataset (always needed)
-      state.chartConfig.datasets = [
-        {
-          label: state.chartConfig.datasetLabel || y,
-          data: values,
-          backgroundColor: state.chartConfig.backgroundColor[0],
-          borderColor: state.chartConfig.borderColor[0],
-          borderWidth: 1,
-        },
-      ];
+      if (['bar', 'pie', 'doughnut', 'polarArea'].includes(state.chartConfig.type)) {
+        // For chart types that support multiple colors for data points
+        state.chartConfig.datasets = [
+          {
+            label: state.chartConfig.datasetLabel || y,
+            data: values,
+            backgroundColor: values.map((_, index) => 
+              state.chartConfig.backgroundColor[index % state.chartConfig.backgroundColor.length]
+            ),
+            borderColor: values.map((_, index) => 
+              state.chartConfig.borderColor[index % state.chartConfig.borderColor.length]
+            ),
+            borderWidth: 1,
+          },
+        ];
+      } else {
+        // For line, scatter, bubble and other chart types that use a single color per dataset
+        state.chartConfig.datasets = [
+          {
+            label: state.chartConfig.datasetLabel || y,
+            data: values,
+            backgroundColor: state.chartConfig.backgroundColor[0],
+            borderColor: state.chartConfig.borderColor[0],
+            borderWidth: 1,
+          },
+        ];
+      }
       
       // Add a second dataset for z values if present (for 3D charts)
       if (z && (state.chartConfig.type === '3d-scatter' || state.chartConfig.type === '3d-surface')) {

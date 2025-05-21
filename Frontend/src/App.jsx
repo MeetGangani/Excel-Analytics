@@ -1,14 +1,28 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Provider } from 'react-redux';
+import { useSelector } from 'react-redux';
 import Header from './components/Header';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import AdminPanel from './pages/AdminPanel';
 import ToastProvider from './components/ToastProvider';
 import store from './redux/store';
 import './App.css';
 import { ThemeProvider } from './context/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// Protected route for admin users only
+const ProtectedAdminRoute = ({ children }) => {
+  const { user } = useSelector((state) => state.auth);
+  
+  // Check if user is logged in and has admin role
+  if (!user || !user.user || user.user.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  return children;
+};
 
 const AppContent = () => {
   const location = useLocation();
@@ -37,6 +51,11 @@ const AppContent = () => {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/dashboard/*" element={<Dashboard />} />
+              <Route path="/admin/*" element={
+                <ProtectedAdminRoute>
+                  <AdminPanel />
+                </ProtectedAdminRoute>
+              } />
             </Routes>
           </motion.div>
         </AnimatePresence>

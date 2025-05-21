@@ -210,28 +210,28 @@ const FileUpload = () => {
           {/* Upload area */}
           <motion.div 
             className={`relative flex items-center justify-center w-full p-8 transition-all ${
-              isDragging 
+            isDragging 
                 ? 'bg-blue-50 border-2 border-dashed border-blue-400' 
                 : 'bg-gray-50 hover:bg-gray-100'
-            }`}
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
+          }`}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
             whileHover={{ scale: 1.002 }}
             transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-          >
-            <input 
-              ref={fileInputRef}
-              id="file-upload" 
-              type="file" 
-              className="hidden" 
+        >
+          <input 
+            ref={fileInputRef}
+            id="file-upload" 
+            type="file" 
+            className="hidden" 
               accept=".xlsx, .xls"
-              multiple
-              onChange={handleFileSelect}
-              disabled={isLoading}
-            />
-            
+            multiple
+            onChange={handleFileSelect}
+            disabled={isLoading}
+          />
+          
             <div className="flex flex-col md:flex-row items-center justify-between w-full max-w-3xl">
               {/* Left side - icon and text */}
               <div className="flex flex-col items-center md:items-start mb-4 md:mb-0 text-center md:text-left">
@@ -243,7 +243,7 @@ const FileUpload = () => {
                 >
                   <svg className="w-16 h-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 13h6m-3-3v6m0 0V8m0 0l-4 4m4-4l4 4m-8 8h8a4 4 0 004-4V8a4 4 0 00-4-4H7a4 4 0 00-4 4v8a4 4 0 004 4z" />
-                  </svg>
+            </svg>
                 </motion.div>
                 <h3 className="text-lg font-medium text-gray-800 mb-1">Upload your Excel files</h3>
                 <p className="text-sm text-gray-500 max-w-sm">
@@ -261,10 +261,10 @@ const FileUpload = () => {
               
               {/* Right side - button */}
               <motion.button
-                type="button"
-                onClick={handleBrowseFiles}
+              type="button"
+              onClick={handleBrowseFiles}
                 className="px-6 py-3 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors shadow-sm flex items-center"
-                disabled={isLoading}
+              disabled={isLoading}
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
               >
@@ -303,7 +303,7 @@ const FileUpload = () => {
       </div>
       
       <AnimatePresence>
-        {selectedFiles.length > 0 && (
+      {selectedFiles.length > 0 && (
           <motion.div 
             className="mb-6"
             initial={{ opacity: 0, y: -10 }}
@@ -325,7 +325,7 @@ const FileUpload = () => {
             </div>
             <div className="border border-gray-200 rounded-xl overflow-hidden">
               <ul className="divide-y divide-gray-200 max-h-60 overflow-y-auto custom-scrollbar">
-                {selectedFiles.map((file, index) => (
+            {selectedFiles.map((file, index) => (
                   <motion.li 
                     key={index} 
                     className="flex items-center justify-between p-3 hover:bg-gray-50"
@@ -337,39 +337,39 @@ const FileUpload = () => {
                     <div className="flex items-center overflow-hidden mr-3">
                       {getFileIcon(file.name)}
                       <div className="ml-3 overflow-hidden">
-                        <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
                         <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
-                      </div>
-                    </div>
+                  </div>
+                </div>
                     <motion.button 
                       className="text-gray-400 hover:text-red-500 focus:outline-none p-1 rounded-full hover:bg-red-50 flex-shrink-0"
-                      onClick={() => removeFile(index)}
-                      disabled={isLoading}
-                      aria-label="Remove file"
+                  onClick={() => removeFile(index)}
+                  disabled={isLoading}
+                  aria-label="Remove file"
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
-                    >
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                  </svg>
                     </motion.button>
                   </motion.li>
-                ))}
-              </ul>
+            ))}
+          </ul>
               
               {/* Upload button */}
               <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
-                <div className="flex items-center justify-between">
-                  {isLoading ? (
+      <div className="flex items-center justify-between">
+          {isLoading ? (
                     <div className="w-full">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-gray-700 flex items-center">
                           <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Uploading...
-                        </span>
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Uploading...
+            </span>
                         <span className="text-sm font-medium text-blue-600">{uploadProgress}%</span>
                       </div>
                       <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -402,7 +402,7 @@ const FileUpload = () => {
                   )}
                 </div>
               </div>
-            </div>
+      </div>
           </motion.div>
         )}
       </AnimatePresence>
