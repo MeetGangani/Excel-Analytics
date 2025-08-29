@@ -60,10 +60,10 @@ try {
     genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     try {
       // Use Gemini 1.5 Flash model
-      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      console.log('Gemini AI initialized successfully with gemini-1.5-flash model');
+      model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+      console.log('Gemini AI initialized successfully with gemini-2.5-flash model');
     } catch (modelError) {
-      console.log('Failed to initialize gemini-1.5-flash model:', modelError.message);
+      console.log('Failed to initialize gemini-2.5-flash model:', modelError.message);
     try {
         // Fallback to basic model for free tier
       model = genAI.getGenerativeModel({ model: "gemini" });
