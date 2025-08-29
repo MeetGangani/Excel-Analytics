@@ -234,7 +234,7 @@ const Header = () => {
                 </motion.div>
                 <div className="ml-2.5">
                   <span className="text-lg font-bold">Excel Analytics</span>
-                  <span className="hidden md:inline-block text-xs ml-1.5 opacity-80">v2.0</span>
+                  {/* <span className="hidden md:inline-block text-xs ml-1.5 opacity-80">v2.0</span> */}
                 </div>
               </Link>
             </motion.div>
