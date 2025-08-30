@@ -9,6 +9,8 @@ const FileUpload = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
+  // Track nested drag events to avoid flicker when moving over children
+  const dragCounter = useRef(0);
   
   const dispatch = useDispatch();
   const { isLoading, isSuccess, isError, message, uploadSuccess } = useSelector(state => state.files);
@@ -93,18 +95,26 @@ const FileUpload = () => {
   const handleDragEnter = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(true);
+    dragCounter.current += 1;
+    if (!isDragging) setIsDragging(true);
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(false);
+    dragCounter.current -= 1;
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+    }
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    // Indicate copy action
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
     if (!isDragging) {
       setIsDragging(true);
     }
@@ -114,13 +124,20 @@ const FileUpload = () => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
+    dragCounter.current = 0;
     
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const files = Array.from(e.dataTransfer.files);
       const validFiles = validateFiles(files);
       
       if (validFiles.length > 0) {
         setSelectedFiles(prev => [...prev, ...validFiles]);
+      }
+      // Clear the drag data
+      if (e.dataTransfer.items) {
+        e.dataTransfer.items.clear();
+      } else {
+        e.dataTransfer.clearData();
       }
     }
   };
