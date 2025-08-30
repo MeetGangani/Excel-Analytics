@@ -1,4 +1,4 @@
-// components/AnalysisRenderer.tsx
+// components/AnalysisRenderer.jsx
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -7,11 +7,7 @@ import rehypeSanitize from 'rehype-sanitize';
 import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github.css';
 
-type Props = {
-  text: string | null | undefined;
-};
-
-const AnalysisRenderer: React.FC<Props> = ({ text }) => {
+const AnalysisRenderer = ({ text }) => {
   if (!text) return null;
 
   return (
@@ -21,7 +17,7 @@ const AnalysisRenderer: React.FC<Props> = ({ text }) => {
         rehypePlugins={[
           rehypeRaw,       // parse inline HTML from model
           rehypeSanitize,  // sanitize parsed HTML
-          rehypeHighlight, // syntax highlighting (runs after sanitize; trusted plugin)
+          rehypeHighlight, // syntax highlighting
         ]}
         components={{
           table: ({ node, ...props }) => (
