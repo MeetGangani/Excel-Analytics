@@ -49,8 +49,91 @@ const ChartVisualization = ({ onChartCreated }) => {
   const { user } = useSelector(state => state.auth);
   const [chartRendered, setChartRendered] = useState(false);
   
+  // Function to sanitize ONLY numeric data (for y-axis values)
+  const sanitizeNumericData = (data) => {
+    if (!data || !Array.isArray(data)) return [];
+    
+    return data.map(value => {
+      // Handle null, undefined, empty string
+      if (value === null || value === undefined || value === '') {
+        return 0;
+      }
+      
+      // If it's already a number, return it
+      if (typeof value === 'number' && !isNaN(value)) {
+        return value;
+      }
+      
+      // Convert string to number
+      if (typeof value === 'string') {
+        // Remove any non-numeric characters except decimal point and minus sign
+        let cleanValue = value.replace(/[^0-9.-]/g, '');
+        
+        // Handle percentage values (remove % and convert)
+        if (value.includes('%')) {
+          cleanValue = cleanValue.replace('%', '');
+          const numValue = parseFloat(cleanValue);
+          return isNaN(numValue) ? 0 : numValue;
+        }
+        
+        const numValue = parseFloat(cleanValue);
+        return isNaN(numValue) ? 0 : numValue;
+      }
+      
+      // Fallback to 0 for any other type
+      return 0;
+    });
+  };
+
+  // Function to sanitize labels (x-axis values like customer names)
+  const sanitizeLabels = (labels) => {
+    if (!labels || !Array.isArray(labels)) return [];
+    
+    return labels.map(label => {
+      // Keep original value if it's already a string
+      if (typeof label === 'string') {
+        return label.trim(); // Just trim whitespace
+      }
+      
+      // Convert to string if it's not
+      return String(label || 'Unknown');
+    });
+  };
+
+  // Create sanitized chart data
+  const getSanitizedChartData = () => {
+    if (!chartConfig || !chartConfig.datasets || chartConfig.datasets.length === 0) {
+      return { labels: [], datasets: [] };
+    }
+
+    // Sanitize labels (x-axis) as strings - DON'T convert to numbers
+    const sanitizedLabels = sanitizeLabels(chartConfig.labels);
+
+    // Sanitize only dataset data (y-axis) as numbers
+    const sanitizedDatasets = chartConfig.datasets.map(dataset => ({
+      ...dataset,
+      data: sanitizeNumericData(dataset.data)
+    }));
+
+    return {
+      labels: sanitizedLabels,
+      datasets: sanitizedDatasets
+    };
+  };
+
   // Check if we have data to display
-  const hasData = chartConfig.datasets.length > 0 && chartConfig.labels.length > 0;
+  const sanitizedData = getSanitizedChartData();
+  const hasData = sanitizedData.datasets.length > 0 && sanitizedData.labels.length > 0;
+
+  // Debug logging to check data
+  useEffect(() => {
+    if (hasData) {
+      console.log('Chart Labels (X-axis):', sanitizedData.labels);
+      console.log('Chart Dataset Data (Y-axis):', sanitizedData.datasets[0]?.data);
+      console.log('Labels type check:', sanitizedData.labels.map(label => typeof label));
+      console.log('Data type check:', sanitizedData.datasets[0]?.data.map(val => typeof val));
+    }
+  }, [hasData, sanitizedData]);
 
   // Increment visualization count in localStorage directly
   const incrementLocalVisualizationCount = () => {
@@ -100,6 +183,58 @@ const ChartVisualization = ({ onChartCreated }) => {
     toast.success('Analysis saved to history!');
   };
   
+  // Calculate proper y-axis range for numeric data only
+  const getYAxisConfig = () => {
+    if (!hasData || sanitizedData.datasets.length === 0) return {};
+
+    const allValues = sanitizedData.datasets.flatMap(dataset => dataset.data || []);
+    const minValue = Math.min(...allValues);
+    const maxValue = Math.max(...allValues);
+    
+    // Add some padding to the range
+    const padding = (maxValue - minValue) * 0.1 || 1;
+    const suggestedMin = Math.max(0, minValue - padding);
+    const suggestedMax = maxValue + padding;
+
+    return {
+      beginAtZero: minValue >= 0,
+      suggestedMin: minValue < 0 ? suggestedMin : undefined,
+      suggestedMax: suggestedMax > 1 ? suggestedMax : undefined,
+      ticks: {
+        callback: function(value) {
+          if (Math.abs(value) < 1 && value !== 0) {
+            return value.toFixed(3);
+          }
+          return value.toLocaleString();
+        }
+      }
+    };
+  };
+
+  // Enhanced x-axis configuration for categorical data
+  const getXAxisConfig = () => {
+    return {
+      type: 'category', // Explicitly set as category for string labels
+      title: {
+        display: true,
+        text: selectedColumns.x,
+        font: { weight: 'bold' }
+      },
+      grid: {
+        color: 'rgba(0, 0, 0, 0.05)',
+      },
+      ticks: {
+        maxRotation: 45, // Rotate labels if they're long
+        minRotation: 0,
+        callback: function(value, index) {
+          const label = this.getLabelForValue(value);
+          // Truncate long customer names
+          return label.length > 15 ? label.substring(0, 15) + '...' : label;
+        }
+      }
+    };
+  };
+
   // Common chart options
   const chartOptions = {
     responsive: true,
@@ -123,43 +258,39 @@ const ChartVisualization = ({ onChartCreated }) => {
         padding: 10,
         cornerRadius: 6,
         displayColors: true,
+        callbacks: {
+          title: function(context) {
+            // Show full customer name in tooltip even if truncated on axis
+            return context[0]?.label || '';
+          },
+          label: function(context) {
+            const label = context.dataset.label || '';
+            const value = context.parsed.y;
+            return `${label}: ${typeof value === 'number' ? value.toLocaleString() : value}`;
+          }
+        }
       },
     },
     scales: chartConfig.type === 'pie' || chartConfig.type === 'doughnut' || chartConfig.type === 'polarArea' 
       ? undefined 
       : {
-          x: {
-            title: {
-              display: true,
-              text: selectedColumns.x,
-              font: { weight: 'bold' }
-            },
-            grid: {
-              color: 'rgba(0, 0, 0, 0.05)',
-            }
-          },
+          x: getXAxisConfig(),
           y: {
             title: {
               display: true,
               text: selectedColumns.y,
               font: { weight: 'bold' }
             },
-            beginAtZero: true,
             grid: {
               color: 'rgba(0, 0, 0, 0.05)',
-            }
+            },
+            ...getYAxisConfig()
           },
         },
     animation: {
       duration: 1000,
       easing: 'easeOutQuart'
     },
-  };
-  
-  // Prepare the chart data
-  const data = {
-    labels: chartConfig.labels,
-    datasets: chartConfig.datasets,
   };
   
   // Export chart as image or PDF
@@ -172,13 +303,12 @@ const ChartVisualization = ({ onChartCreated }) => {
       
       // Create a canvas from the chart
       const canvas = await html2canvas(chartElement, {
-        scale: 2, // Increase resolution
+        scale: 2,
         backgroundColor: '#FFFFFF',
         logging: false,
       });
       
       if (exportFormat === 'png') {
-        // For PNG, create a download link
         const image = canvas.toDataURL('image/png', 1.0);
         const link = document.createElement('a');
         const filename = `${chartConfig.title || 'chart'}-${new Date().toISOString().slice(0, 10)}.png`;
@@ -188,30 +318,25 @@ const ChartVisualization = ({ onChartCreated }) => {
         toast.dismiss();
         toast.success(`Chart exported as: ${filename}`);
       } else {
-        // For PDF
         const imgData = canvas.toDataURL('image/png', 1.0);
         const pdf = new jsPDF({
           orientation: 'landscape',
           unit: 'mm',
         });
         
-        // Add a title to the PDF
         pdf.setFontSize(16);
         pdf.text(chartConfig.title || 'Chart Export', 14, 15);
         
-        // Add metadata
         pdf.setFontSize(10);
         pdf.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
         if (fileData && fileData.sheetName) {
           pdf.text(`Source: ${fileData.sheetName}`, 14, 27);
         }
         
-        // Calculate dimensions to fit the chart
         const imgProps = pdf.getImageProperties(imgData);
-        const pdfWidth = pdf.internal.pageSize.getWidth() - 28; // margins
+        const pdfWidth = pdf.internal.pageSize.getWidth() - 28;
         const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
         
-        // Add the chart image
         pdf.addImage(imgData, 'PNG', 14, 35, pdfWidth, pdfHeight);
         
         const filename = `${chartConfig.title || 'chart'}-${new Date().toISOString().slice(0, 10)}.pdf`;
@@ -238,11 +363,9 @@ const ChartVisualization = ({ onChartCreated }) => {
       const filename = `${chartConfig.title || 'data'}-${new Date().toISOString().slice(0, 10)}`;
       
       if (dataFormat === 'csv') {
-        // Export as CSV
         const headers = Object.keys(data[0]).join(',');
         const csvRows = data.map(row => {
           return Object.values(row).map(value => {
-            // Handle values that might contain commas
             return typeof value === 'string' && value.includes(',') 
               ? `"${value}"` 
               : value;
@@ -258,7 +381,6 @@ const ChartVisualization = ({ onChartCreated }) => {
         
         toast.success(`Data exported as: ${filename}.csv`);
       } else if (dataFormat === 'json') {
-        // Export as JSON
         const jsonString = JSON.stringify(data, null, 2);
         const blob = new Blob([jsonString], { type: 'application/json' });
         const link = document.createElement('a');
@@ -268,7 +390,6 @@ const ChartVisualization = ({ onChartCreated }) => {
         
         toast.success(`Data exported as: ${filename}.json`);
       } else if (dataFormat === 'xlsx') {
-        // Export as Excel
         const worksheet = XLSX.utils.json_to_sheet(data);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
@@ -300,20 +421,21 @@ const ChartVisualization = ({ onChartCreated }) => {
     
     // For 3D charts using Plotly
     if (chartConfig.type === '3d-scatter' || chartConfig.type === '3d-surface') {
-      // Get data ready for Plotly format
       const plotlyData = [];
       
       if (chartConfig.type === '3d-scatter') {
-        // Create 3D scatter plot data
+        const sanitizedYData = sanitizeNumericData(chartConfig.datasets[0]?.data || []);
+        const sanitizedZData = chartConfig.datasets.length > 1 && chartConfig.datasets[1]?.data 
+          ? sanitizeNumericData(chartConfig.datasets[1].data) 
+          : Array.from({length: sanitizedData.labels.length}, (_, i) => i);
+        
         const scatterData = {
           type: 'scatter3d',
           mode: 'markers',
           name: chartConfig.datasetLabel || 'Dataset',
-          x: [...chartConfig.labels],
-          y: [...chartConfig.datasets[0].data],
-          z: chartConfig.datasets.length > 1 && chartConfig.datasets[1].data 
-            ? [...chartConfig.datasets[1].data] 
-            : [...Array(chartConfig.labels.length)].map((_, i) => i),
+          x: sanitizedData.labels, // Keep as strings for customer names
+          y: sanitizedYData,
+          z: sanitizedZData,
           marker: {
             size: 6,
             color: chartConfig.datasets[0].backgroundColor || 'rgba(75, 192, 192, 0.8)',
@@ -326,11 +448,8 @@ const ChartVisualization = ({ onChartCreated }) => {
         };
         plotlyData.push(scatterData);
       } else if (chartConfig.type === '3d-surface') {
-        // Create z data matrix for surface plot
-        // For simple demonstration, we'll use the first dataset
-        const zValues = [...chartConfig.datasets[0].data];
+        const zValues = sanitizeNumericData(chartConfig.datasets[0]?.data || []);
         
-        // Create a matrix for z values (simple example)
         const dataLength = Math.ceil(Math.sqrt(zValues.length));
         const zMatrix = [];
         for (let i = 0; i < dataLength; i++) {
@@ -361,12 +480,7 @@ const ChartVisualization = ({ onChartCreated }) => {
       const plotlyLayout = {
         title: chartConfig.title,
         autosize: true,
-        margin: {
-          l: 0,
-          r: 0,
-          b: 0,
-          t: 40,
-        },
+        margin: { l: 0, r: 0, b: 0, t: 40 },
         scene: {
           xaxis: { title: selectedColumns.x },
           yaxis: { title: selectedColumns.y },
@@ -396,22 +510,22 @@ const ChartVisualization = ({ onChartCreated }) => {
       );
     }
     
-    // For regular Chart.js charts
+    // For regular Chart.js charts - use sanitized data
     switch (chartConfig.type) {
       case 'bar':
-        return <Bar data={data} options={chartOptions} />;
+        return <Bar data={sanitizedData} options={chartOptions} />;
       case 'line':
-        return <Line data={data} options={chartOptions} />;
+        return <Line data={sanitizedData} options={chartOptions} />;
       case 'pie':
-        return <Pie data={data} options={chartOptions} />;
+        return <Pie data={sanitizedData} options={chartOptions} />;
       case 'doughnut':
-        return <Doughnut data={data} options={chartOptions} />;
+        return <Doughnut data={sanitizedData} options={chartOptions} />;
       case 'polar':
-        return <PolarArea data={data} options={chartOptions} />;
+        return <PolarArea data={sanitizedData} options={chartOptions} />;
       case 'radar':
-        return <Radar data={data} options={chartOptions} />;
+        return <Radar data={sanitizedData} options={chartOptions} />;
       default:
-        return <Bar data={data} options={chartOptions} />;
+        return <Bar data={sanitizedData} options={chartOptions} />;
     }
   };
   

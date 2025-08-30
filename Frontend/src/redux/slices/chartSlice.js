@@ -137,8 +137,29 @@ const chartSlice = createSlice({
       const labels = data.map(item => item[x]);
       state.chartConfig.labels = labels;
 
-      // Extract dataset (y-axis data)
-      const values = data.map(item => parseFloat(item[y]) || 0);
+      // Extract dataset (y-axis data) with robust parsing - supports commas, currency, percents, and parentheses negatives
+      const coerceNumber = (val) => {
+        if (val === null || val === undefined) return 0;
+        if (typeof val === 'number') return isFinite(val) ? val : 0;
+        if (typeof val === 'boolean') return val ? 1 : 0;
+        if (typeof val === 'string') {
+          let s = val.trim();
+          if (s === '' || /^(n\/a|na|null|-)$/i.test(s)) return 0;
+          // Handle negatives in parentheses, e.g., (123)
+          const negMatch = s.match(/^\((.*)\)$/);
+          if (negMatch) s = '-' + negMatch[1];
+          // Handle percentage
+          const isPercent = /%$/.test(s);
+          if (isPercent) s = s.replace(/%$/, '');
+          // Remove currency symbols, commas, and spaces
+          s = s.replace(/[,$€£₹\s]/g, '');
+          const n = Number(s);
+          if (!isFinite(n)) return 0;
+          return isPercent ? n / 100 : n;
+        }
+        return 0;
+      };
+      const values = data.map(item => coerceNumber(item[y]));
       
       if (['bar', 'pie', 'doughnut', 'polarArea'].includes(state.chartConfig.type)) {
         // For chart types that support multiple colors for data points
@@ -172,7 +193,7 @@ const chartSlice = createSlice({
       if (z && (state.chartConfig.type === '3d-scatter' || state.chartConfig.type === '3d-surface')) {
         // Verify Z column exists in data
         if (data[0].hasOwnProperty(z)) {
-          const zValues = data.map(item => parseFloat(item[z]) || 0);
+          const zValues = data.map(item => coerceNumber(item[z]));
           state.chartConfig.datasets.push({
             label: z,
             data: zValues,
